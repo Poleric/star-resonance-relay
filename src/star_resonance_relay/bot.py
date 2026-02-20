@@ -305,19 +305,19 @@ class BPSRRelayBot(Bot):
         content: str | None = None
         match msg_info.msg_type:
             case ChitChatMsgType.ChatMsgTextMessage:
-                header = f"{char_info.name} {"🌱" if char_info.is_newbie else ""} [{self.CHANNEL_MAPPING[channel_type]}]"
+                header = f"{char_info.name} {"🌱 " if char_info.is_newbie else ""}[{self.CHANNEL_MAPPING[channel_type]}]"
                 content = msg_info.msg_text
 
                 for key, value in EMOJI_MAPPING.items():
                     content = content.replace(key, value)
             case ChitChatMsgType.ChatMsgPictureEmoji:
-                header = f"{char_info.name} {"🌱" if char_info.is_newbie else ""} [{self.CHANNEL_MAPPING[channel_type]}]"
+                header = f"{char_info.name} {"🌱 " if char_info.is_newbie else ""}[{self.CHANNEL_MAPPING[channel_type]}]"
                 content = PICTURE_EMOJI_MAPPING.get(msg_info.picture_emoji.config_id)
             case ChitChatMsgType.ChatMsgHypertext:
                 hypertext = msg_info.chat_hypertext
                 match hypertext.config_id:
                     case 3000001:  # normal chatting
-                        header = f"{char_info.name} {"🌱" if char_info.is_newbie else ""} [{self.CHANNEL_MAPPING[channel_type]}]"
+                        header = f"{char_info.name} {"🌱 " if char_info.is_newbie else ""}[{self.CHANNEL_MAPPING[channel_type]}]"
                         content = ""
 
                         for placeholder in hypertext.hypertext_contents:
@@ -329,7 +329,7 @@ class BPSRRelayBot(Bot):
                                     content += f"[ __{ITEM_NAME_MAPPING.get(item.config_id, item.config_id)}__ ]"
 
                     case 1050001:  # sharing master seal
-                        header = f"{char_info.name} {"🌱" if char_info.is_newbie else ""} [{self.CHANNEL_MAPPING[channel_type]}]"
+                        header = f"{char_info.name} {"🌱 " if char_info.is_newbie else ""}[{self.CHANNEL_MAPPING[channel_type]}]"
                         content = ""
 
                         for placeholder in hypertext.hypertext_contents:
@@ -341,7 +341,7 @@ class BPSRRelayBot(Bot):
                                     content += f"[ __{master.user_name}'s Master Seal__ ]"
 
                     case 3001001:  # sharing personal space
-                        header = f"{char_info.name} {"🌱" if char_info.is_newbie else ""} [{self.CHANNEL_MAPPING[channel_type]}]"
+                        header = f"{char_info.name} {"🌱 " if char_info.is_newbie else ""}[{self.CHANNEL_MAPPING[channel_type]}]"
                         content = ""
 
                         for placeholder in hypertext.hypertext_contents:
@@ -353,7 +353,7 @@ class BPSRRelayBot(Bot):
                                     content += f"[ __{player.name}'s personal space__ ]"
 
                     case 8009003:  # sharing fish
-                        header = f"{char_info.name} {"🌱" if char_info.is_newbie else ""} [{self.CHANNEL_MAPPING[channel_type]}]"
+                        header = f"{char_info.name} {"🌱 " if char_info.is_newbie else ""}[{self.CHANNEL_MAPPING[channel_type]}]"
                         content = ""
 
                         for placeholder in hypertext.hypertext_contents:
@@ -365,7 +365,7 @@ class BPSRRelayBot(Bot):
                                     content += f"[ __{char_info.name}'s record of {ITEM_NAME_MAPPING.get(fish.fish_id, fish.fish_id)}__ ]"
 
                     case 8009005:  # share fishing record
-                        header = f"{char_info.name} {"🌱" if char_info.is_newbie else ""} [{self.CHANNEL_MAPPING[channel_type]}]"
+                        header = f"{char_info.name} {"🌱 " if char_info.is_newbie else ""}[{self.CHANNEL_MAPPING[channel_type]}]"
                         content = ""
 
                         for placeholder in hypertext.hypertext_contents:

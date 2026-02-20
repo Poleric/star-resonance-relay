@@ -5,6 +5,8 @@ from typing import Self, override, Callable
 from google.protobuf.message import Message
 from scapy.layers.inet import TCP, IP
 from scapy.packet import Packet, Raw
+from scapy.config import conf
+conf.layers.filter([TCP, IP])
 
 from star_resonance_relay.processor import BPSRPacketProcessor
 from star_resonance_relay.utils import TCPReassembler, BinaryReader

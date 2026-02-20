@@ -45,33 +45,36 @@ class Sniffer:
         if TCP not in packet or IP not in packet or Raw not in packet:
             return
 
-        tcp_payload = bytes(packet[Raw])
-        # tcp_seq = packet[TCP].seq
-        endpoints = Endpoints.from_packet(packet)
-        # del packet
+        try:
+            tcp_payload = bytes(packet[Raw])
+            # tcp_seq = packet[TCP].seq
+            endpoints = Endpoints.from_packet(packet)
+            # del packet
 
-        # 1) Discover/lock server flow
-        if self._known_server != endpoints:
-            if self._is_server(tcp_payload):
-                logger.info(f"Locking to flow {endpoints.source} <-> {endpoints.destination}")
-                self._known_server = endpoints
-                # Reset reassembler from next expected seq
-                # Use TCP header's sequence number; pydivert exposes it as packet.tcp.seq_num
-                # self._reassembler.clear(tcp_seq + len(tcp_payload))
-            else:
-                return  # don’t process the discovery packet’s payload again
+            # 1) Discover/lock server flow
+            if self._known_server != endpoints:
+                if self._is_server(tcp_payload):
+                    logger.info(f"Locking to flow {endpoints.source} <-> {endpoints.destination}")
+                    self._known_server = endpoints
+                    # Reset reassembler from next expected seq
+                    # Use TCP header's sequence number; pydivert exposes it as packet.tcp.seq_num
+                    # self._reassembler.clear(tcp_seq + len(tcp_payload))
+                else:
+                    return  # don’t process the discovery packet’s payload again
 
-        # 2) Reassemble by TCP sequence number & parse frames for the locked flow
-        logger.debug(f"Reading {packet}")
-        # self._reassembler.push(tcp_seq, tcp_payload)
-        # for frame in self._reassembler.pop_frames():
-        for frame in self._processor.process_frame(tcp_payload):
-            logger.debug(f"Found {frame}")
-            try:
-                message = self._processor.decode_payload(frame)
-            except NotImplementedError:
-                continue
-            self._callback(message)
+            # 2) Reassemble by TCP sequence number & parse frames for the locked flow
+            logger.debug(f"Reading {packet}")
+            # self._reassembler.push(tcp_seq, tcp_payload)
+            # for frame in self._reassembler.pop_frames():
+            for frame in self._processor.process_frame(tcp_payload):
+                logger.debug(f"Found {frame}")
+                try:
+                    message = self._processor.decode_payload(frame)
+                except NotImplementedError:
+                    continue
+                self._callback(message)
+        except Exception:
+            logger.exception(packet)
 
 
 class BPSRDefaultSniffer(Sniffer):

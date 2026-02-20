@@ -388,7 +388,8 @@ class BPSRRelayBot(Bot):
             webhook = SyncWebhook.from_url(self.webhook_url, session=self.session)
             webhook.send(content, username=header)
         else:
-            logger.info(channel_type, message)
+            logger.info(channel_type)
+            logger.info(message)
 
 
 def main():

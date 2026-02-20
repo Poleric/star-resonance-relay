@@ -1,0 +1,10 @@
+services:
+  bot:
+    build: .
+    environment:
+      DISCORD_BOT_TOKEN: ${DISCORD_BOT_TOKEN}
+      WEBHOOK_URL: ${WEBHOOK_URL}
+      CHANNEL_TYPE: ${CHANNEL_TYPE}
+    network_mode: host
+    cap_add:
+      - NET_ADMIN

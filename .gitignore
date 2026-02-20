@@ -1,0 +1,8 @@
+# IDE
+.idea/
+
+# Python
+.venv/
+
+# Protobufs compilation
+src/star_resonance_relay/proto/

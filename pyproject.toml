@@ -1,0 +1,27 @@
+[project]
+name = "star-resonance-relay"
+version = "0.1.0"
+description = "Add your description here"
+requires-python = ">=3.14"
+dependencies = [
+    "scapy",
+    "protobuf",
+    "requests",
+    "discord.py",
+    "zstandard>=0.25.0"
+]
+
+[project.scripts]
+star-resonance-relay = "star_resonance_relay.bot:main"
+
+[dependency-groups]
+dev = [
+    "grpcio-tools>=1.78.1"
+]
+build = [
+    "grpcio-tools>=1.78.1"
+]
+
+[build-system]
+requires = ["uv_build>=0.10.4,<0.11.0"]
+build-backend = "uv_build"

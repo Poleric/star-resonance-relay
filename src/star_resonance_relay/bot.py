@@ -7,29 +7,28 @@ from discord.ext.commands import Bot
 from google.protobuf.message import Message
 from scapy.sendrecv import AsyncSniffer
 
-from star_resonance_relay.proto.serv_chit_chat_ntf_pb2 import ChitChatNtf
+from star_resonance_relay.const.item import ITEM_NAME_MAPPING
 from star_resonance_relay.proto.enum_chit_chat_channel_type_pb2 import ChitChatChannelType
 from star_resonance_relay.proto.enum_chit_chat_msg_type_pb2 import ChitChatMsgType
-from star_resonance_relay.proto.stru_chit_chat_msg_pb2 import ChitChatMsg
-from star_resonance_relay.proto.stru_place_holder_pb2 import PlaceHolder
 from star_resonance_relay.proto.enum_place_holder_type_pb2 import PlaceHolderType
-from star_resonance_relay.proto.stru_place_holder_val_pb2 import PlaceHolderVal
-from star_resonance_relay.proto.stru_place_holder_player_pb2 import PlaceHolderPlayer
-from star_resonance_relay.proto.stru_place_holder_item_pb2 import PlaceHolderItem
+from star_resonance_relay.proto.serv_chit_chat_ntf_pb2 import ChitChatNtf
+from star_resonance_relay.proto.stru_chit_chat_msg_pb2 import ChitChatMsg
 from star_resonance_relay.proto.stru_place_holder_buff_pb2 import PlaceHolderBuff
-from star_resonance_relay.proto.stru_place_holder_timestamp_pb2 import PlaceHolderTimestamp
-from star_resonance_relay.proto.stru_place_holder_str_pb2 import PlaceHolderStr
-from star_resonance_relay.proto.stru_place_holder_fish_personal_total_pb2 import PlaceHolderFishPersonalTotal
 from star_resonance_relay.proto.stru_place_holder_fish_item_pb2 import PlaceHolderFishItem
+from star_resonance_relay.proto.stru_place_holder_fish_personal_total_pb2 import PlaceHolderFishPersonalTotal
 from star_resonance_relay.proto.stru_place_holder_fish_rank_pb2 import PlaceHolderFishRank
-from star_resonance_relay.proto.stru_place_holder_union_pb2 import PlaceHolderUnion
+from star_resonance_relay.proto.stru_place_holder_item_pb2 import PlaceHolderItem
 from star_resonance_relay.proto.stru_place_holder_master_mode_pb2 import PlaceHolderMasterMode
+from star_resonance_relay.proto.stru_place_holder_pb2 import PlaceHolder
+from star_resonance_relay.proto.stru_place_holder_player_pb2 import PlaceHolderPlayer
 from star_resonance_relay.proto.stru_place_holder_scene_position_pb2 import PlaceHolderScenePosition
-from star_resonance_relay.const.item import ITEM_NAME_MAPPING
+from star_resonance_relay.proto.stru_place_holder_str_pb2 import PlaceHolderStr
+from star_resonance_relay.proto.stru_place_holder_timestamp_pb2 import PlaceHolderTimestamp
+from star_resonance_relay.proto.stru_place_holder_union_pb2 import PlaceHolderUnion
+from star_resonance_relay.proto.stru_place_holder_val_pb2 import PlaceHolderVal
 from star_resonance_relay.sniffer import BPSRChatSniffer
 
 logger = logging.getLogger(__name__)
-
 
 # in_game_id: discord_emoji
 EMOJI_MAPPING: dict[str, str] = {
@@ -97,7 +96,6 @@ EMOJI_MAPPING: dict[str, str] = {
     "<sprite=62>": ":kissing_cat:",
     "<sprite=63>": ":pouting_cat:",
 }
-
 
 # config_id: discord_sticker
 PICTURE_EMOJI_MAPPING: dict[int, str] = {
@@ -212,6 +210,7 @@ PICTURE_EMOJI_MAPPING: dict[int, str] = {
     11012: ":Airona15:",
     11013: ":Airona16:",
 }
+
 
 class BPSRRelayBot(Bot):
     CHANNEL_MAPPING: dict[ChitChatChannelType, str] = {

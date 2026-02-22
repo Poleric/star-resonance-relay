@@ -2,7 +2,7 @@ import logging
 import os
 
 import requests
-from discord import Intents, SyncWebhook
+from discord import Intents, SyncWebhook, Embed
 from discord.ext.commands import Bot
 from google.protobuf.message import Message
 from scapy.sendrecv import AsyncSniffer
@@ -302,7 +302,7 @@ class BPSRRelayBot(Bot):
         char_info = message.send_char_info
 
         header: str | None = None
-        content: str | None = None
+        content: str | Embed | None = None
         match msg_info.msg_type:
             case ChitChatMsgType.ChatMsgTextMessage:
                 header = f"{char_info.name} {"🌱 " if char_info.is_newbie else ""}[{self.CHANNEL_MAPPING[channel_type]}]"
@@ -381,12 +381,16 @@ class BPSRRelayBot(Bot):
                         player: PlaceHolderPlayer = self._decode_placeholder(placeholder)
 
                         header = "Guild Administrator"
-                        content = f"Welcome __{player.name}__ to the Guild!"
+                        content = Embed(description=f"Welcome __{player.name}__ to the Guild!")
 
         if header and content:
             logger.info(f"{header=} {content=}")
             webhook = SyncWebhook.from_url(self.webhook_url, session=self.session)
-            webhook.send(content, username=header)
+
+            if isinstance(content, str):
+                webhook.send(content, username=header)
+            elif isinstance(content, Embed):
+                webhook.send(embed=content, username=header)
         else:
             logger.info(channel_type)
             logger.info(message)

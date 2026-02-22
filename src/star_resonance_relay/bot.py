@@ -382,6 +382,15 @@ class BPSRRelayBot(Bot):
                         header = "Guild Administrator"
                         content = Embed(description=f"Welcome __{player.name}__ to the Guild!")
 
+                    case 5010003:  # Guild hunt progress
+                        placeholder = hypertext.hypertext_contents[0]
+                        value: PlaceHolderVal = self._decode_placeholder(placeholder)
+
+                        header = "Guild"
+                        content = Embed(
+                            description="With everyone's active participation, the hunting progress has reach %d%%, you can open the "
+                                        "event interface to receive additional rewards provided by the Pioneer Bureau" % value.value)
+
         if header and content:
             logger.info(f"{header=} {content=}")
             webhook = SyncWebhook.from_url(self.webhook_url, session=self.session)

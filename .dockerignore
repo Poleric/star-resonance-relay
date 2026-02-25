@@ -6,3 +6,6 @@
 
 # Protobufs compilation
 src/star_resonance_relay/proto/
+
+# Deployment
+.env

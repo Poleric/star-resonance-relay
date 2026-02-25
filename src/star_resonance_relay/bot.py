@@ -1,6 +1,7 @@
 import logging
 import os
 from dataclasses import dataclass
+from enum import Enum
 
 import requests
 from discord import SyncWebhook, Embed, SyncWebhookMessage
@@ -223,6 +224,16 @@ class WebhookContent:
         return webhook.send(self.content, username=self.username)
 
 
+class HypertextVariant(Enum):
+    ITEM_SHARING = 3000001
+    MASTER_SEAL = 1050001
+    PERSONAL_SPACE = 3001001
+    FISH = 8009003
+    FISHING_RECORD = 8009005
+    GUILD_WELCOME_NEW_MEMBER = 5001012
+    GUILD_HUNT_PROGRESS = 5010003
+
+
 class BPSRRelayBot:
     CHANNEL_MAPPING: dict[ChitChatChannelType, str] = {
         ChitChatChannelType.ChannelWorld: "World",
@@ -323,8 +334,13 @@ class BPSRRelayBot:
 
     def _process_hypertext(self, event: NotifyNewestChitChatMsgsRequest) -> WebhookContent:
         hypertext = event.chat_msg.msg_info.chat_hypertext
-        match hypertext.config_id:
-            case 3000001:  # normal chatting
+        try:
+            hypertext_type = HypertextVariant(hypertext.config_id)
+        except ValueError:
+            raise NotImplementedError
+
+        match hypertext_type:
+            case HypertextVariant.ITEM_SHARING:
                 content = ""
 
                 for placeholder in hypertext.hypertext_contents:
@@ -337,7 +353,7 @@ class BPSRRelayBot:
 
                 return WebhookContent(username=self._get_player_header(event), content=content)
 
-            case 1050001:  # sharing master seal
+            case HypertextVariant.MASTER_SEAL:
                 content = ""
 
                 for placeholder in hypertext.hypertext_contents:
@@ -350,7 +366,7 @@ class BPSRRelayBot:
 
                 return WebhookContent(username=self._get_player_header(event), content=content)
 
-            case 3001001:  # sharing personal space
+            case HypertextVariant.PERSONAL_SPACE:
                 content = ""
 
                 for placeholder in hypertext.hypertext_contents:
@@ -363,7 +379,7 @@ class BPSRRelayBot:
 
                 return WebhookContent(username=self._get_player_header(event), content=content)
 
-            case 8009003:  # sharing fish
+            case HypertextVariant.FISH:
                 content = ""
 
                 for placeholder in hypertext.hypertext_contents:
@@ -376,7 +392,7 @@ class BPSRRelayBot:
 
                 return WebhookContent(username=self._get_player_header(event), content=content)
 
-            case 8009005:  # share fishing record
+            case HypertextVariant.FISHING_RECORD:
                 content = ""
 
                 for placeholder in hypertext.hypertext_contents:
@@ -389,7 +405,7 @@ class BPSRRelayBot:
 
                 return WebhookContent(username=self._get_player_header(event), content=content)
 
-            case 5001012:  # Welcome guild message??
+            case HypertextVariant.GUILD_WELCOME_NEW_MEMBER:
                 placeholder = hypertext.hypertext_contents[0]
                 player: PlaceHolderPlayer = self._decode_placeholder(placeholder)
 
@@ -398,7 +414,7 @@ class BPSRRelayBot:
                     content=Embed(description=f"Welcome __{player.name}__ to the Guild!")
                 )
 
-            case 5010003:  # Guild hunt progress
+            case HypertextVariant.GUILD_HUNT_PROGRESS:
                 placeholder = hypertext.hypertext_contents[0]
                 value: PlaceHolderVal = self._decode_placeholder(placeholder)
 
@@ -409,7 +425,8 @@ class BPSRRelayBot:
                                     "event interface to receive additional rewards provided by the Pioneer Bureau" % value.value)
                 )
 
-        raise NotImplementedError
+            case _:
+                raise NotImplementedError
 
     def send_message(self, event: NotifyNewestChitChatMsgsRequest) -> None:
         content: WebhookContent | None = None

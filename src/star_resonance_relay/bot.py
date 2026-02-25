@@ -2,10 +2,9 @@ import logging
 import os
 
 import requests
-from discord import Intents, SyncWebhook, Embed
-from discord.ext.commands import Bot
+from discord import SyncWebhook, Embed
 from google.protobuf.message import Message
-from scapy.sendrecv import AsyncSniffer
+from scapy.sendrecv import sniff
 
 from star_resonance_relay.const.item import ITEM_NAME_MAPPING
 from star_resonance_relay.proto.enum_chit_chat_channel_type_pb2 import ChitChatChannelType
@@ -212,7 +211,7 @@ PICTURE_EMOJI_MAPPING: dict[int, str] = {
 }
 
 
-class BPSRRelayBot(Bot):
+class BPSRRelayBot:
     CHANNEL_MAPPING: dict[ChitChatChannelType, str] = {
         ChitChatChannelType.ChannelWorld: "World",
         ChitChatChannelType.ChannelScene: "Current",
@@ -238,9 +237,7 @@ class BPSRRelayBot(Bot):
         PlaceHolderType.PlaceHolderTypeScenePosition: PlaceHolderScenePosition,
     }
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
+    def __init__(self):
         self.webhook_url = os.getenv("WEBHOOK_URL")
         self.channel_types: list[ChitChatChannelType] = []
 
@@ -252,9 +249,6 @@ class BPSRRelayBot(Bot):
 
         self.listener = BPSRChatSniffer(self.on_bpsr_message)
         self.session = requests.Session()
-
-        self.sniffer = AsyncSniffer(prn=lambda pkt: self.listener.handle_packet(pkt), store=False)
-        self.sniffer.start()
 
     def _decode_placeholder(self, placeholder: PlaceHolder) -> (
             PlaceHolderVal
@@ -403,18 +397,17 @@ class BPSRRelayBot(Bot):
             logger.info(channel_type)
             logger.info(message)
 
+    def start(self) -> None:
+        sniff(prn=self.listener.handle_packet, store=False)
+
 
 def main():
-    import asyncio
     from discord.utils import setup_logging
 
-    async def async_main():
-        setup_logging()
+    setup_logging()
 
-        bot = BPSRRelayBot(command_prefix=".", intents=Intents.default())
-        await bot.start(os.getenv("DISCORD_BOT_TOKEN"))
-
-    asyncio.run(async_main())
+    bot = BPSRRelayBot()
+    bot.start()
 
 
 if __name__ == '__main__':

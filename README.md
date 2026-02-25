@@ -31,7 +31,7 @@ pacman -S libpcap
 
 1. Generate BPSR protocol buffers
    ```bash
-   uv run scripts/generate_protobufs.py
+   uv run --group build scripts/generate_protobufs.py
    ```
 
 2. Copy `.env.example` and rename it to `.env`

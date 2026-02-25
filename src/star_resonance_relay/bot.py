@@ -1,8 +1,9 @@
 import logging
 import os
+from dataclasses import dataclass
 
 import requests
-from discord import SyncWebhook, Embed
+from discord import SyncWebhook, Embed, SyncWebhookMessage
 from google.protobuf.message import Message
 from scapy.sendrecv import sniff
 
@@ -11,7 +12,7 @@ from star_resonance_relay.proto.enum_chit_chat_channel_type_pb2 import ChitChatC
 from star_resonance_relay.proto.enum_chit_chat_msg_type_pb2 import ChitChatMsgType
 from star_resonance_relay.proto.enum_place_holder_type_pb2 import PlaceHolderType
 from star_resonance_relay.proto.serv_chit_chat_ntf_pb2 import ChitChatNtf
-from star_resonance_relay.proto.stru_chit_chat_msg_pb2 import ChitChatMsg
+from star_resonance_relay.proto.stru_notify_newest_chit_chat_msgs_request_pb2 import NotifyNewestChitChatMsgsRequest
 from star_resonance_relay.proto.stru_place_holder_buff_pb2 import PlaceHolderBuff
 from star_resonance_relay.proto.stru_place_holder_fish_item_pb2 import PlaceHolderFishItem
 from star_resonance_relay.proto.stru_place_holder_fish_personal_total_pb2 import PlaceHolderFishPersonalTotal
@@ -211,6 +212,17 @@ PICTURE_EMOJI_MAPPING: dict[int, str] = {
 }
 
 
+@dataclass(slots=True)
+class WebhookContent:
+    username: str
+    content: str | Embed
+
+    def send_to(self, webhook: SyncWebhook) -> SyncWebhookMessage | None:
+        if isinstance(self.content, Embed):
+            return webhook.send(embed=self.content, username=self.username)
+        return webhook.send(self.content, username=self.username)
+
+
 class BPSRRelayBot:
     CHANNEL_MAPPING: dict[ChitChatChannelType, str] = {
         ChitChatChannelType.ChannelWorld: "World",
@@ -249,6 +261,8 @@ class BPSRRelayBot:
 
         self.listener = BPSRChatSniffer(self.on_bpsr_message)
         self.session = requests.Session()
+        self.webhook = SyncWebhook.from_url(self.webhook_url, session=self.session)
+        logger.info(f"Connected to webhook {self.webhook}")
 
     def _decode_placeholder(self, placeholder: PlaceHolder) -> (
             PlaceHolderVal
@@ -279,125 +293,146 @@ class BPSRRelayBot:
             return
 
         payload: ChitChatNtf.NotifyNewestChitChatMsgs
-
-        channel = payload.v_request.channel_type
-        if channel not in self.channel_types:
+        if payload.v_request.channel_type not in self.channel_types:
             return
 
-        message = payload.v_request.chat_msg
-        self.send_message(
-            channel,
-            message
+        self.send_message(payload.v_request)
+
+    def _get_player_header(self, event: NotifyNewestChitChatMsgsRequest) -> str:
+        char_info = event.chat_msg.send_char_info
+
+        return "{name}{sprout}[{channel}]".format(
+            name=char_info.name,
+            sprout=" 🌱 " if char_info.is_newbie else " ",
+            channel=self.CHANNEL_MAPPING[event.channel_type]
         )
 
-    def send_message(self, channel_type: ChitChatChannelType, message: ChitChatMsg):
-        msg_info = message.msg_info
-        char_info = message.send_char_info
+    def _process_text_message(self, event: NotifyNewestChitChatMsgsRequest) -> WebhookContent:
+        content = event.chat_msg.msg_info.msg_text
 
-        header: str | None = None
-        content: str | Embed | None = None
-        match msg_info.msg_type:
+        for key, value in EMOJI_MAPPING.items():
+            content = content.replace(key, value)
+
+        return WebhookContent(username=self._get_player_header(event), content=content)
+
+    def _process_picture_emoji(self, event: NotifyNewestChitChatMsgsRequest) -> WebhookContent:
+        return WebhookContent(
+            username=self._get_player_header(event),
+            content=PICTURE_EMOJI_MAPPING.get(event.chat_msg.msg_info.picture_emoji.config_id)
+        )
+
+    def _process_hypertext(self, event: NotifyNewestChitChatMsgsRequest) -> WebhookContent:
+        hypertext = event.chat_msg.msg_info.chat_hypertext
+        match hypertext.config_id:
+            case 3000001:  # normal chatting
+                content = ""
+
+                for placeholder in hypertext.hypertext_contents:
+                    placeholder_content = self._decode_placeholder(placeholder)
+                    match placeholder_content:
+                        case PlaceHolderStr() as string:
+                            content += string.text
+                        case PlaceHolderItem() as item:
+                            content += f"[ __{ITEM_NAME_MAPPING.get(item.config_id, item.config_id)}__ ]"
+
+                return WebhookContent(username=self._get_player_header(event), content=content)
+
+            case 1050001:  # sharing master seal
+                content = ""
+
+                for placeholder in hypertext.hypertext_contents:
+                    placeholder_content = self._decode_placeholder(placeholder)
+                    match placeholder_content:
+                        case PlaceHolderStr() as string:
+                            content += string.text
+                        case PlaceHolderMasterMode() as master:
+                            content += f"[ __{master.user_name}'s Master Seal__ ]"
+
+                return WebhookContent(username=self._get_player_header(event), content=content)
+
+            case 3001001:  # sharing personal space
+                content = ""
+
+                for placeholder in hypertext.hypertext_contents:
+                    placeholder_content = self._decode_placeholder(placeholder)
+                    match placeholder_content:
+                        case PlaceHolderStr() as string:
+                            content += string.text
+                        case PlaceHolderPlayer() as player:
+                            content += f"[ __{player.name}'s personal space__ ]"
+
+                return WebhookContent(username=self._get_player_header(event), content=content)
+
+            case 8009003:  # sharing fish
+                content = ""
+
+                for placeholder in hypertext.hypertext_contents:
+                    placeholder_content = self._decode_placeholder(placeholder)
+                    match placeholder_content:
+                        case PlaceHolderStr() as string:
+                            content += string.text
+                        case PlaceHolderFishItem() as fish:
+                            content += f"[ __{event.chat_msg.send_char_info.name}'s record of {ITEM_NAME_MAPPING.get(fish.fish_id, fish.fish_id)}__ ]"
+
+                return WebhookContent(username=self._get_player_header(event), content=content)
+
+            case 8009005:  # share fishing record
+                content = ""
+
+                for placeholder in hypertext.hypertext_contents:
+                    placeholder_content = self._decode_placeholder(placeholder)
+                    match placeholder_content:
+                        case PlaceHolderStr() as string:
+                            content += string.text
+                        case PlaceHolderFishPersonalTotal() as record:
+                            content += f"[ __{record.user_name}'s fishing profile__ ]"
+
+                return WebhookContent(username=self._get_player_header(event), content=content)
+
+            case 5001012:  # Welcome guild message??
+                placeholder = hypertext.hypertext_contents[0]
+                player: PlaceHolderPlayer = self._decode_placeholder(placeholder)
+
+                return WebhookContent(
+                    username="Guild Administrator",
+                    content=Embed(description=f"Welcome __{player.name}__ to the Guild!")
+                )
+
+            case 5010003:  # Guild hunt progress
+                placeholder = hypertext.hypertext_contents[0]
+                value: PlaceHolderVal = self._decode_placeholder(placeholder)
+
+                return WebhookContent(
+                    username="Guild",
+                    content=Embed(
+                        description="With everyone's active participation, the hunting progress has reach %d%%, you can open the "
+                                    "event interface to receive additional rewards provided by the Pioneer Bureau" % value.value)
+                )
+
+        raise NotImplementedError
+
+    def send_message(self, event: NotifyNewestChitChatMsgsRequest) -> None:
+        content: WebhookContent | None = None
+        match event.chat_msg.msg_info.msg_type:
             case ChitChatMsgType.ChatMsgTextMessage:
-                header = f"{char_info.name} {"🌱 " if char_info.is_newbie else ""}[{self.CHANNEL_MAPPING[channel_type]}]"
-                content = msg_info.msg_text
-
-                for key, value in EMOJI_MAPPING.items():
-                    content = content.replace(key, value)
+                content = self._process_text_message(event)
             case ChitChatMsgType.ChatMsgPictureEmoji:
-                header = f"{char_info.name} {"🌱 " if char_info.is_newbie else ""}[{self.CHANNEL_MAPPING[channel_type]}]"
-                content = PICTURE_EMOJI_MAPPING.get(msg_info.picture_emoji.config_id)
+                content = self._process_picture_emoji(event)
             case ChitChatMsgType.ChatMsgHypertext:
-                hypertext = msg_info.chat_hypertext
-                match hypertext.config_id:
-                    case 3000001:  # normal chatting
-                        header = f"{char_info.name} {"🌱 " if char_info.is_newbie else ""}[{self.CHANNEL_MAPPING[channel_type]}]"
-                        content = ""
+                try:
+                    content = self._process_hypertext(event)
+                except NotImplementedError:
+                    pass
 
-                        for placeholder in hypertext.hypertext_contents:
-                            placeholder_content = self._decode_placeholder(placeholder)
-                            match placeholder_content:
-                                case PlaceHolderStr() as string:
-                                    content += string.text
-                                case PlaceHolderItem() as item:
-                                    content += f"[ __{ITEM_NAME_MAPPING.get(item.config_id, item.config_id)}__ ]"
+        if content:
+            logger.info(f"{content=}")
 
-                    case 1050001:  # sharing master seal
-                        header = f"{char_info.name} {"🌱 " if char_info.is_newbie else ""}[{self.CHANNEL_MAPPING[channel_type]}]"
-                        content = ""
-
-                        for placeholder in hypertext.hypertext_contents:
-                            placeholder_content = self._decode_placeholder(placeholder)
-                            match placeholder_content:
-                                case PlaceHolderStr() as string:
-                                    content += string.text
-                                case PlaceHolderMasterMode() as master:
-                                    content += f"[ __{master.user_name}'s Master Seal__ ]"
-
-                    case 3001001:  # sharing personal space
-                        header = f"{char_info.name} {"🌱 " if char_info.is_newbie else ""}[{self.CHANNEL_MAPPING[channel_type]}]"
-                        content = ""
-
-                        for placeholder in hypertext.hypertext_contents:
-                            placeholder_content = self._decode_placeholder(placeholder)
-                            match placeholder_content:
-                                case PlaceHolderStr() as string:
-                                    content += string.text
-                                case PlaceHolderPlayer() as player:
-                                    content += f"[ __{player.name}'s personal space__ ]"
-
-                    case 8009003:  # sharing fish
-                        header = f"{char_info.name} {"🌱 " if char_info.is_newbie else ""}[{self.CHANNEL_MAPPING[channel_type]}]"
-                        content = ""
-
-                        for placeholder in hypertext.hypertext_contents:
-                            placeholder_content = self._decode_placeholder(placeholder)
-                            match placeholder_content:
-                                case PlaceHolderStr() as string:
-                                    content += string.text
-                                case PlaceHolderFishItem() as fish:
-                                    content += f"[ __{char_info.name}'s record of {ITEM_NAME_MAPPING.get(fish.fish_id, fish.fish_id)}__ ]"
-
-                    case 8009005:  # share fishing record
-                        header = f"{char_info.name} {"🌱 " if char_info.is_newbie else ""}[{self.CHANNEL_MAPPING[channel_type]}]"
-                        content = ""
-
-                        for placeholder in hypertext.hypertext_contents:
-                            placeholder_content = self._decode_placeholder(placeholder)
-                            match placeholder_content:
-                                case PlaceHolderStr() as string:
-                                    content += string.text
-                                case PlaceHolderFishPersonalTotal() as record:
-                                    content += f"[ __{record.user_name}'s fishing profile__ ]"
-
-                    case 5001012:  # Welcome guild message??
-                        placeholder = hypertext.hypertext_contents[0]
-                        player: PlaceHolderPlayer = self._decode_placeholder(placeholder)
-
-                        header = "Guild Administrator"
-                        content = Embed(description=f"Welcome __{player.name}__ to the Guild!")
-
-                    case 5010003:  # Guild hunt progress
-                        placeholder = hypertext.hypertext_contents[0]
-                        value: PlaceHolderVal = self._decode_placeholder(placeholder)
-
-                        header = "Guild"
-                        content = Embed(
-                            description="With everyone's active participation, the hunting progress has reach %d%%, you can open the "
-                                        "event interface to receive additional rewards provided by the Pioneer Bureau" % value.value)
-
-        if header and content:
-            logger.info(f"{header=} {content=}")
-            webhook = SyncWebhook.from_url(self.webhook_url, session=self.session)
-
-            if isinstance(content, str):
-                webhook.send(content, username=header)
-            elif isinstance(content, Embed):
-                webhook.send(embed=content, username=header)
+            content.send_to(self.webhook)
         else:
-            logger.info(channel_type)
-            logger.info(message)
+            logger.info(event)
 
     def start(self) -> None:
+        logger.info("Started sniffing")
         sniff(prn=self.listener.handle_packet, store=False)
 
 

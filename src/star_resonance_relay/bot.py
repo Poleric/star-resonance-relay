@@ -232,6 +232,7 @@ class HypertextVariant(Enum):
     FISHING_RECORD = 8009005
     GUILD_WELCOME_NEW_MEMBER = 5001012
     GUILD_HUNT_PROGRESS = 5010003
+    EE_CHAN = 1005003
 
 
 class BPSRRelayBot:
@@ -423,6 +424,13 @@ class BPSRRelayBot:
                     content=Embed(
                         description="With everyone's active participation, the hunting progress has reach %d%%, you can open the "
                                     "event interface to receive additional rewards provided by the Pioneer Bureau" % value.value)
+                )
+
+            case HypertextVariant.EE_CHAN:
+                return WebhookContent(
+                    username="Guild",
+                    content=Embed(
+                        description="Ee-chan has brought rewards to the Guild, come and find Ee-chan to claim your rewards~")
                 )
 
             case _:

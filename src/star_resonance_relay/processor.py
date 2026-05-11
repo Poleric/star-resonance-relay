@@ -3,14 +3,17 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Iterator
 
-import zstandard as zstd  # Optional, used for compressed fragments
+import zstandard as zstd
 from google.protobuf.message import Message
 
 from star_resonance_relay.proto.serv_chit_chat_ntf_pb2 import ChitChatNtf
+from star_resonance_relay.proto.serv_social_ntf_pb2 import SocialNtf
 from star_resonance_relay.proto.serv_world_ntf_pb2 import WorldNtf
 from star_resonance_relay.utils import BinaryReader
 
 logger = logging.getLogger(__name__)
+
+MAX_ZSTD_BUFFER = 10 * 1024 * 1024  # 10 mb
 
 
 class FragmentType(Enum):
@@ -70,6 +73,9 @@ class BPSRPacketProcessor:
             },
             0x0000000009d4a768: {
                 0x00000001: ChitChatNtf.NotifyNewestChitChatMsgs
+            },
+            0x00000000254c89a3: {
+                0x00000001: SocialNtf.NotifySocialData
             }
         }
 
@@ -102,7 +108,7 @@ class BPSRPacketProcessor:
 
         # Decompress payload if needed
         if is_zstd and zstd:
-            payload = zstd.decompress(payload)
+            payload = zstd.decompress(payload, MAX_ZSTD_BUFFER)
 
         return NotifyFrame(
             service_uid=service_uid,
@@ -138,14 +144,16 @@ class BPSRPacketProcessor:
 
             match frag_type:
                 case FragmentType.NOTIFY:
-                    yield self._parse_notify(fragment.read_remaining(), is_compressed)
+                    frame = self._parse_notify(fragment.read_remaining(), is_compressed)
+                    if frame:
+                        yield frame
                 case FragmentType.FRAME_DOWN:
                     # nested frame; read server sequence id and recurse
                     _server_seq = fragment.read_u32()
                     nested = fragment.read_remaining()
                     if is_compressed and zstd:
                         try:
-                            nested = zstd.decompress(nested)
+                            nested = zstd.decompress(nested, MAX_ZSTD_BUFFER)
                         except Exception:
                             continue
                     # Recursively process nested frames

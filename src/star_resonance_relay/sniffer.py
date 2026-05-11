@@ -9,7 +9,7 @@ from scapy.config import conf
 conf.layers.filter([TCP, IP])
 
 from star_resonance_relay.processor import BPSRPacketProcessor
-from star_resonance_relay.utils import TCPReassembler, BinaryReader
+from star_resonance_relay.utils import BinaryReader
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +37,6 @@ class Sniffer:
     def __init__(self, callback: Callable[[Message], None]):
         self._callback = callback
         self._known_server: Endpoints | None = None
-        # self._reassembler = TCPReassembler()
         self._processor = BPSRPacketProcessor()
 
     def _is_server(self, payload: bytes) -> bool:
@@ -48,30 +47,20 @@ class Sniffer:
             return
 
         try:
-            tcp_payload = bytes(packet[Raw])
-            # tcp_seq = packet[TCP].seq
+            payload = bytes(packet[Raw])
             endpoints = Endpoints.from_packet(packet)
-            # del packet
 
-            # 1) Discover/lock server flow
+            # Discover/lock server flow
             if self._known_server != endpoints:
-                if self._is_server(tcp_payload):
+                if self._is_server(payload):
                     logger.info(f"Locking to flow {endpoints.source} <-> {endpoints.destination}")
                     self._known_server = endpoints
-                    # Reset reassembler from next expected seq
-                    # Use TCP header's sequence number; pydivert exposes it as packet.tcp.seq_num
-                    # self._reassembler.clear(tcp_seq + len(tcp_payload))
                 else:
-                    return  # don’t process the discovery packet’s payload again
+                    return
 
-            # 2) Reassemble by TCP sequence number & parse frames for the locked flow
-            logger.debug(f"Reading {packet}")
-            # self._reassembler.push(tcp_seq, tcp_payload)
-            # for frame in self._reassembler.pop_frames():
-            for frame in self._processor.process_frame(tcp_payload):
-                logger.debug(f"Found {frame}")
+            for notify_frame in self._processor.process_frame(payload):
                 try:
-                    message = self._processor.decode_payload(frame)
+                    message = self._processor.decode_payload(notify_frame)
                 except NotImplementedError:
                     continue
                 self._callback(message)

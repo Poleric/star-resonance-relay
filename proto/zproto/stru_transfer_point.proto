@@ -1,9 +1,0 @@
-syntax = "proto3";
-
-package zproto;
-
-
-message TransferPoint {
-  map<int32, int32> points = 1;
-}
-

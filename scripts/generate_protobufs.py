@@ -13,7 +13,7 @@ from typing import Iterable, Sequence
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT_DIR = ROOT / "src" / "star_resonance_relay" / "proto"
-STAR_DATA = ROOT / "proto"
+STAR_DATA = ROOT / "ref" / "StarResonanceData" / "proto"
 
 PROTO_BATCHES: Sequence[tuple[Path, Sequence[str]]] = (
     (STAR_DATA / "zproto", [str(STAR_DATA / "zproto")]),

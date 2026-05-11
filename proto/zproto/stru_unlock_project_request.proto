@@ -1,8 +1,0 @@
-syntax = "proto3";
-
-package zproto;
-
-message UnlockProjectRequest {
-  int32 project_id = 1;
-}
-

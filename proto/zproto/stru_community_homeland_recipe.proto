@@ -1,9 +1,0 @@
-syntax = "proto3";
-
-package zproto;
-
-
-message CommunityHomelandRecipe {
-  int32 id = 1;
-}
-

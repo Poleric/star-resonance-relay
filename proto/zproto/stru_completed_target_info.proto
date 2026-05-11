@@ -1,9 +1,0 @@
-syntax = "proto3";
-
-package zproto;
-
-
-message CompletedTargetInfo {
-  map<int32, bool> completed_target_list = 1;
-}
-

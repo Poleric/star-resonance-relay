@@ -1,8 +1,0 @@
-syntax = "proto3";
-
-package zproto;
-
-message GetPersonalZoneTargetAwardRequest {
-  int32 id = 1;
-}
-

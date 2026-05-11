@@ -1,8 +1,0 @@
-syntax = "proto3";
-
-package zproto;
-
-message GetUnionEScreenListRequest {
-  int64 union_id = 1;
-}
-

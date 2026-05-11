@@ -1,8 +1,0 @@
-syntax = "proto3";
-
-package zproto;
-
-message InviteToWarehouseRequest {
-  int64 invitee_char_id = 1;
-}
-

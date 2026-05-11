@@ -1,8 +1,0 @@
-syntax = "proto3";
-
-package zproto;
-
-message ActiveRogueRuneParam {
-  int32 id = 1;
-}
-

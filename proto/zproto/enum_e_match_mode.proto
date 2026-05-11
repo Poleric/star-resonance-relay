@@ -1,9 +1,0 @@
-syntax = "proto3";
-
-package zproto;
-
-enum EMatchMode {
-  EMatchModeSingle = 0;
-  EMatchModeTeam = 1;
-}
-

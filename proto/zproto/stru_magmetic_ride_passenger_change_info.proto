@@ -1,9 +1,0 @@
-syntax = "proto3";
-
-package zproto;
-
-import "stru_passenger_change_param.proto";
-
-message MagneticRidePassengerChangeInfo {
-    repeated PassengerChangeParam PassengerChangeList = 1;
-}

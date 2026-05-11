@@ -1,8 +1,0 @@
-syntax = "proto3";
-
-package zproto;
-
-message BuffRainbowEffectData {
-  int32 value = 1;
-}
-

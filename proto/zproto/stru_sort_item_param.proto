@@ -1,9 +1,0 @@
-syntax = "proto3";
-
-package zproto;
-
-message SortItemParam {
-  int64 src_item_uuid = 1;
-  int64 dst_item_uuid = 2;
-}
-

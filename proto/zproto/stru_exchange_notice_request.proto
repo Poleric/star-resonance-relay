@@ -1,9 +1,0 @@
-syntax = "proto3";
-
-package zproto;
-
-message ExchangeNoticeRequest {
-  int32 type = 1;
-  int32 sub_type = 2;
-}
-

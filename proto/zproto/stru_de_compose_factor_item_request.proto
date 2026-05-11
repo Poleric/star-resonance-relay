@@ -1,8 +1,0 @@
-syntax = "proto3";
-
-package zproto;
-
-message DeComposeFactorItemRequest {
-  map<uint64, uint32> v_items = 1;
-}
-

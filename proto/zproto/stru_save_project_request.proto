@@ -1,8 +1,0 @@
-syntax = "proto3";
-
-package zproto;
-
-message SaveProjectRequest {
-  int32 project_id = 1;
-}
-

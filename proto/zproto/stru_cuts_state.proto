@@ -1,9 +1,0 @@
-syntax = "proto3";
-
-package zproto;
-
-
-message CutsState {
-  map<int32, int32> state_info = 1;
-}
-

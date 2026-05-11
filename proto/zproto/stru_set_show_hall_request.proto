@@ -1,9 +1,0 @@
-syntax = "proto3";
-
-package zproto;
-
-message SetShowHallRequest {
-  bool is_show = 2;
-  bool is_server_set = 3;
-}
-

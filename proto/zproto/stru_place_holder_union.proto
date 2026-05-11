@@ -1,8 +1,0 @@
-syntax = "proto3";
-
-package zproto;
-
-message PlaceHolderUnion {
-  uint32 build = 1;
-}
-

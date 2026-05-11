@@ -1,9 +1,0 @@
-syntax = "proto3";
-
-package zproto;
-
-enum EBreakingStage {
-  Breaking = 0;
-  BreakEnd = 1;
-}
-

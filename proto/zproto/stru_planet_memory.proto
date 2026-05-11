@@ -1,9 +1,0 @@
-syntax = "proto3";
-
-package zproto;
-
-
-message PlanetMemory {
-  repeated int32 pass_room = 1;
-}
-

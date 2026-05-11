@@ -1,8 +1,0 @@
-syntax = "proto3";
-
-package zproto;
-
-message GetTreasureInfoRequest {
-  repeated int32 index = 1;
-}
-

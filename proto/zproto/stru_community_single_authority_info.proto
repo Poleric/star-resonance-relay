@@ -1,8 +1,0 @@
-syntax = "proto3";
-
-package zproto;
-
-message CommunitySingleAuthorityInfo {
-  repeated int32 data = 1;
-}
-

@@ -1,9 +1,0 @@
-syntax = "proto3";
-
-package zproto;
-
-import "stru_temp_attr.proto";
-
-message TempAttrCollection {
-    repeated TempAttr Attrs = 1;
-}

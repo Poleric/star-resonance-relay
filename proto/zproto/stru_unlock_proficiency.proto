@@ -1,9 +1,0 @@
-syntax = "proto3";
-
-package zproto;
-
-
-message UnlockProficiency {
-  repeated int32 unlock_buffer_id = 1;
-}
-

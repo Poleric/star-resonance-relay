@@ -1,8 +1,0 @@
-syntax = "proto3";
-
-package zproto;
-
-message TakeOnSetRideSkinParam {
-  int32 skin_id = 1;
-}
-

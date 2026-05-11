@@ -1,8 +1,0 @@
-syntax = "proto3";
-
-package zproto;
-
-message TransferLeaderRequest {
-  int64 new_leader_id = 3;
-}
-

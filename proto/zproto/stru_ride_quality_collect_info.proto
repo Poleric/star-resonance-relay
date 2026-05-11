@@ -1,9 +1,0 @@
-syntax = "proto3";
-
-package zproto;
-
-
-message RideQualityCollectInfo {
-  map<int32, int32> quality_count = 1;
-}
-

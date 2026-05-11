@@ -1,8 +1,0 @@
-syntax = "proto3";
-
-package zproto;
-
-message NotifyCommunityApplyUpdateRequest {
-  bool is_update = 1;
-}
-

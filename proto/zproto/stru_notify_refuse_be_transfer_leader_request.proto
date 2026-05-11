@@ -1,8 +1,0 @@
-syntax = "proto3";
-
-package zproto;
-
-message NotifyRefuseBeTransferLeaderRequest {
-  int64 mem_id = 1;
-}
-

@@ -1,8 +1,0 @@
-syntax = "proto3";
-
-package zproto;
-
-message UnInstallFantasyRequest {
-  int32 node_id = 1;
-}
-

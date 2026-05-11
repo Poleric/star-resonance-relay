@@ -1,9 +1,0 @@
-syntax = "proto3";
-
-package zproto;
-
-
-message DungeonDamage {
-  map<int64, int64> damages = 1;
-}
-

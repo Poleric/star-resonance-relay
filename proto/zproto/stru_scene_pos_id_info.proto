@@ -1,8 +1,0 @@
-syntax = "proto3";
-
-package zproto;
-
-message ScenePosIdInfo {
-  int32 scene_pos_id = 1;
-}
-

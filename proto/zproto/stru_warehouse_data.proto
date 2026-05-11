@@ -1,9 +1,0 @@
-syntax = "proto3";
-
-package zproto;
-
-
-message WarehouseData {
-  int64 warehouse_id = 1;
-}
-

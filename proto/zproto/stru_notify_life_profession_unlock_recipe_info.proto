@@ -1,8 +1,0 @@
-syntax = "proto3";
-
-package zproto;
-
-message NotifyLifeProfessionUnlockRecipeInfo {
-  repeated int32 recipe_ids = 1;
-}
-

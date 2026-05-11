@@ -1,9 +1,0 @@
-syntax = "proto3";
-
-package zproto;
-
-
-message SeasonRankData {
-  map<uint32, uint32> season_ranks = 1;
-}
-

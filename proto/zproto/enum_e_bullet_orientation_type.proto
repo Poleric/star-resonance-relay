@@ -1,9 +1,0 @@
-syntax = "proto3";
-
-package zproto;
-
-enum EBulletOrientationType {
-  EBulletOrientationTypeSummoner = 0;
-  EBulletOrientationTypeAllAround = 1;
-}
-

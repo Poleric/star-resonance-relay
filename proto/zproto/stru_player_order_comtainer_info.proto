@@ -1,9 +1,0 @@
-syntax = "proto3";
-
-package zproto;
-
-
-message PlayerOrderComtainerInfo {
-  int32 index = 1;
-}
-

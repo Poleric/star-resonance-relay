@@ -1,8 +1,0 @@
-syntax = "proto3";
-
-package zproto;
-
-message ActiveNormalNodeRequest {
-  int32 node_id = 1;
-}
-

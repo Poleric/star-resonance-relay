@@ -1,0 +1,3 @@
+[submodule "ref/StarResonanceData"]
+	path = ref/StarResonanceData
+	url = https://github.com/Poleric/StarResonanceData

@@ -1,9 +1,0 @@
-syntax = "proto3";
-
-package zproto;
-
-
-message CultivateNormalNodeData {
-  int32 active_level = 1;
-}
-

@@ -1,8 +1,0 @@
-syntax = "proto3";
-
-package zproto;
-
-message Attr {
-    optional int32 Id = 1;
-    optional bytes RawData = 2;
-}

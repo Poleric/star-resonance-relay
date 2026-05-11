@@ -1,9 +1,0 @@
-syntax = "proto3";
-
-package zproto;
-
-
-message RideData {
-  int32 ride_id = 1;
-}
-

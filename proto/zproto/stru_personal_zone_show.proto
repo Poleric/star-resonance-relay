@@ -1,9 +1,0 @@
-syntax = "proto3";
-
-package zproto;
-
-
-message PersonalZoneShow {
-  map<int32, int32> medals = 1;
-}
-

@@ -1,9 +1,0 @@
-syntax = "proto3";
-
-package zproto;
-
-message SignRewardData {
-  repeated int32 sign_days = 1;
-  repeated int32 reward_days = 2;
-}
-

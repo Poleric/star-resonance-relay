@@ -1,8 +1,0 @@
-syntax = "proto3";
-
-package zproto;
-
-message EnableCultivateLineRequest {
-  int32 zone_id = 1;
-}
-

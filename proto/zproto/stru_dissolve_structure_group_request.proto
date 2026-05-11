@@ -1,9 +1,0 @@
-syntax = "proto3";
-
-package zproto;
-
-message DissolveStructureGroupRequest {
-  repeated int64 group_ids = 1;
-  bool is_outer = 2;
-}
-

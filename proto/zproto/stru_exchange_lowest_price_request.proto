@@ -1,8 +1,0 @@
-syntax = "proto3";
-
-package zproto;
-
-message ExchangeLowestPriceRequest {
-  int32 config_id = 1;
-}
-

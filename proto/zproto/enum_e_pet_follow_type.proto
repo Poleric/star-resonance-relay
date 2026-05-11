@@ -1,9 +1,0 @@
-syntax = "proto3";
-
-package zproto;
-
-enum EPetFollowType {
-  ENormalFollow = 0;
-  EForceFollow = 1;
-}
-

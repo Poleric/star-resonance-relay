@@ -1,9 +1,0 @@
-syntax = "proto3";
-
-package zproto;
-
-message NotifyBuildingUpgradeEndRequest {
-  int32 building_id = 2;
-  int32 build_level = 3;
-}
-

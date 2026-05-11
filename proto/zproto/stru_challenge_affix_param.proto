@@ -1,9 +1,0 @@
-syntax = "proto3";
-
-package zproto;
-
-message ChallengeAffixParam {
-  int32 dungeon_id = 1;
-  int32 diff = 2;
-}
-

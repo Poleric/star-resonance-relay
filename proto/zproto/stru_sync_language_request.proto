@@ -1,8 +1,0 @@
-syntax = "proto3";
-
-package zproto;
-
-message SyncLanguageRequest {
-  int32 language = 1;
-}
-

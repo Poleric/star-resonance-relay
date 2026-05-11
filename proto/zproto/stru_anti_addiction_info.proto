@@ -1,9 +1,0 @@
-syntax = "proto3";
-
-package zproto;
-
-
-message AntiAddictionInfo {
-  uint32 last_time = 1;
-}
-

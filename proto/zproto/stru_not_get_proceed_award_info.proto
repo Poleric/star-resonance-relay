@@ -1,9 +1,0 @@
-syntax = "proto3";
-
-package zproto;
-
-
-message NotGetProceedAwardInfo {
-  map<uint32, uint32> award_id_times = 1;
-}
-

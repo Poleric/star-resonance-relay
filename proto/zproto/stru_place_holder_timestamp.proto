@@ -1,8 +1,0 @@
-syntax = "proto3";
-
-package zproto;
-
-message PlaceHolderTimestamp {
-  int64 timestamp = 1;
-}
-

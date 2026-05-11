@@ -1,9 +1,0 @@
-syntax = "proto3";
-
-package zproto;
-
-
-message AnswerList {
-  repeated int32 answers = 1;
-}
-

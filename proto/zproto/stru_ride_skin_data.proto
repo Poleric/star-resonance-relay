@@ -1,9 +1,0 @@
-syntax = "proto3";
-
-package zproto;
-
-
-message RideSkinData {
-  int64 activate_time = 1;
-}
-

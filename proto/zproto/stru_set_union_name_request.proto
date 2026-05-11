@@ -1,9 +1,0 @@
-syntax = "proto3";
-
-package zproto;
-
-message SetUnionNameRequest {
-  int64 union_id = 2;
-  string name = 3;
-}
-

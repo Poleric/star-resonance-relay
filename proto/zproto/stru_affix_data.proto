@@ -1,9 +1,0 @@
-syntax = "proto3";
-
-package zproto;
-
-
-message AffixData {
-  repeated int32 affix_ids = 1;
-}
-

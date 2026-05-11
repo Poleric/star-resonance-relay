@@ -1,9 +1,0 @@
-syntax = "proto3";
-
-package zproto;
-
-
-message MiscInfo {
-  map<int32, int32> expression_ids_learned = 1;
-}
-

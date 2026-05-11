@@ -1,8 +1,0 @@
-syntax = "proto3";
-
-package zproto;
-
-message CreatePrivateChatSessionRequest {
-  int64 target_id = 2;
-}
-

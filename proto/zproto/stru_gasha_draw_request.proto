@@ -1,9 +1,0 @@
-syntax = "proto3";
-
-package zproto;
-
-message GashaDrawRequest {
-  int32 count = 1;
-  int32 pool_id = 2;
-}
-

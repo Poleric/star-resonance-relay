@@ -1,8 +1,0 @@
-syntax = "proto3";
-
-package zproto;
-
-message CommunityBuildFurnitureSimpleRequest {
-  int32 build_type = 1;
-}
-

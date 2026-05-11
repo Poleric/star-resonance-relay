@@ -1,8 +1,0 @@
-syntax = "proto3";
-
-package zproto;
-
-message TempAttr {
-    optional int32 Id = 1;
-    optional int32 Value = 2;
-}

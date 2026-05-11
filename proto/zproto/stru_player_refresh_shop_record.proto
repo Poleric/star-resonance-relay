@@ -1,9 +1,0 @@
-syntax = "proto3";
-
-package zproto;
-
-
-message PlayerRefreshShopRecord {
-  repeated int32 items = 2;
-}
-

@@ -1,9 +1,0 @@
-syntax = "proto3";
-
-package zproto;
-
-
-message ProfileList {
-  map<int32, bool> unlock_profile_list = 1;
-}
-

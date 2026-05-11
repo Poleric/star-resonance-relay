@@ -1,8 +1,0 @@
-syntax = "proto3";
-
-package zproto;
-
-message Materials {
-  map<int32, int64> materials_map = 1;
-}
-

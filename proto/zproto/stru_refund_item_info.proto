@@ -1,9 +1,0 @@
-syntax = "proto3";
-
-package zproto;
-
-
-message RefundItemInfo {
-  map<int32, int64> item_list = 1;
-}
-

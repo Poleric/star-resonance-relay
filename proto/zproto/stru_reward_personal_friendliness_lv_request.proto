@@ -1,9 +1,0 @@
-syntax = "proto3";
-
-package zproto;
-
-message RewardPersonalFriendlinessLvRequest {
-  int64 friend_id = 1;
-  int32 level = 2;
-}
-

@@ -1,9 +1,0 @@
-syntax = "proto3";
-
-package zproto;
-
-
-message TimerRefreshInfo {
-  int64 last_refresh_time = 1;
-}
-

@@ -1,9 +1,0 @@
-syntax = "proto3";
-
-package zproto;
-
-enum EActivityType {
-  ActivityTypeNone = 0;
-  ActivityTypeBuyGift = 1;
-}
-

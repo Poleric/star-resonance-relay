@@ -1,9 +1,0 @@
-syntax = "proto3";
-
-package zproto;
-
-
-message ShowPieceIdList {
-  repeated int32 piece_ids = 1;
-}
-

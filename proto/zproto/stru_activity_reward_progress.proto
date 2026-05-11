@@ -1,9 +1,0 @@
-syntax = "proto3";
-
-package zproto;
-
-message ActivityRewardProgress {
-  int32 cur = 1;
-  int32 max = 2;
-}
-

@@ -17,13 +17,13 @@ STAR_DATA = ROOT / "proto"
 
 PROTO_BATCHES: Sequence[tuple[Path, Sequence[str]]] = (
     (STAR_DATA / "zproto", [str(STAR_DATA / "zproto")]),
-    (STAR_DATA / "chat", [str(STAR_DATA / "chat")]),
-    (STAR_DATA / "bokura", [str(STAR_DATA / "bokura"), str(STAR_DATA)]),
-    (STAR_DATA / "table_config", [str(STAR_DATA / "table_config")]),
+    # (STAR_DATA / "chat", [str(STAR_DATA / "chat")]),
+    # (STAR_DATA / "bokura", [str(STAR_DATA / "bokura"), str(STAR_DATA)]),
+    # (STAR_DATA / "table_config", [str(STAR_DATA / "table_config")]),
 )
 
 EXTRA_FILES: Sequence[tuple[Path, Sequence[str]]] = (
-    (STAR_DATA, ["table_basic.proto"]),
+    # (STAR_DATA, ["table_basic.proto"]),
 )
 
 INIT_TEMPLATE = '"""Generated protobuf modules for BPSR."""\nfrom __future__ import annotations\n\nimport sys\nfrom pathlib import Path\n\n_pkg_dir = Path(__file__).resolve().parent\n_pkg_str = str(_pkg_dir)\nif _pkg_str not in sys.path:\n    sys.path.insert(0, _pkg_str)\n\n__all__: list[str] = []\n'

@@ -7,8 +7,8 @@ import zstandard as zstd
 from google.protobuf.message import Message
 
 from star_resonance_relay.proto.serv_chit_chat_ntf_pb2 import ChitChatNtf
-from star_resonance_relay.proto.serv_social_ntf_pb2 import SocialNtf
 from star_resonance_relay.proto.serv_world_ntf_pb2 import WorldNtf
+from star_resonance_relay.proto.serv_social_pb2 import Social
 from star_resonance_relay.utils import BinaryReader
 
 logger = logging.getLogger(__name__)
@@ -26,6 +26,14 @@ class FragmentType(Enum):
     ECHO = 4
     FRAME_UP = 5
     FRAME_DOWN = 6
+    ACK_FRAME_UP = 7
+    ACK_FRAME_DOWN = 8
+    REWIND_FRAME = 9
+    CALL_INNER = 10
+    NOTIFY_INNER = 11
+    BROADCAST = 12
+    BROADCAST_BY_SES = 13
+    TERMINATE = 14
 
 
 @dataclass(slots=True, frozen=True)
@@ -74,8 +82,8 @@ class BPSRPacketProcessor:
             0x0000000009d4a768: {
                 0x00000001: ChitChatNtf.NotifyNewestChitChatMsgs
             },
-            0x00000000254c89a3: {
-                0x00000001: SocialNtf.NotifySocialData
+            0x000000000626ad66: {
+                0x00047065: Social.GetSocialData
             }
         }
 
@@ -133,7 +141,7 @@ class BPSRPacketProcessor:
             fragment = BinaryReader(reader.read(pkt_len))
 
             # skip length field
-            fragment.read_u32()
+            _length = fragment.read_u32()
             frag_type_field = fragment.read_u16()
 
             is_compressed = bool(frag_type_field & 0x8000)
@@ -144,21 +152,20 @@ class BPSRPacketProcessor:
 
             match frag_type:
                 case FragmentType.NOTIFY:
-                    frame = self._parse_notify(fragment.read_remaining(), is_compressed)
-                    if frame:
-                        yield frame
+                    notify_frame = self._parse_notify(fragment.read_remaining(), is_compressed)
+                    if notify_frame:
+                        yield notify_frame
+
                 case FragmentType.FRAME_DOWN:
                     # nested frame; read server sequence id and recurse
                     _server_seq = fragment.read_u32()
                     nested = fragment.read_remaining()
                     if is_compressed and zstd:
-                        try:
-                            nested = zstd.decompress(nested, MAX_ZSTD_BUFFER)
-                        except Exception:
-                            continue
+                        nested = zstd.decompress(nested, MAX_ZSTD_BUFFER)
                     # Recursively process nested frames
                     for tup in self.process_frame(nested):
                         yield tup
+
                 case _:
                     # other fragment types are ignored for now
                     pass

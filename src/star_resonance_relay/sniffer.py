@@ -51,12 +51,12 @@ class BPSRPacket(Packet):
     ]
 
     @classmethod
-    def tcp_reassemble(cls, data, *args, **kwargs):
+    def tcp_reassemble(cls, data):
         if len(data) < 4:
             return None
 
         length = struct.unpack(">I", data[:4])[0]
-        if len(data) >= length + 4:
+        if len(data) >= length:
             return cls(data)
 
         return None

@@ -3,16 +3,19 @@ import os
 from dataclasses import dataclass
 from enum import Enum
 
-import requests
 import polars as pl
+import requests
 from discord import SyncWebhook, Embed, SyncWebhookMessage
 from discord.utils import MISSING
 from google.protobuf.message import Message
 
+from star_resonance_relay.packet import method as MethodId
+from star_resonance_relay.packet.service import Service
 from star_resonance_relay.proto.enum_chit_chat_channel_type_pb2 import ChitChatChannelType
 from star_resonance_relay.proto.enum_chit_chat_msg_type_pb2 import ChitChatMsgType
 from star_resonance_relay.proto.enum_place_holder_type_pb2 import PlaceHolderType
 from star_resonance_relay.proto.serv_chit_chat_ntf_pb2 import ChitChatNtf
+from star_resonance_relay.proto.serv_social_pb2 import Social
 from star_resonance_relay.proto.stru_notify_newest_chit_chat_msgs_request_pb2 import NotifyNewestChitChatMsgsRequest
 from star_resonance_relay.proto.stru_place_holder_buff_pb2 import PlaceHolderBuff
 from star_resonance_relay.proto.stru_place_holder_fish_item_pb2 import PlaceHolderFishItem
@@ -27,8 +30,7 @@ from star_resonance_relay.proto.stru_place_holder_str_pb2 import PlaceHolderStr
 from star_resonance_relay.proto.stru_place_holder_timestamp_pb2 import PlaceHolderTimestamp
 from star_resonance_relay.proto.stru_place_holder_union_pb2 import PlaceHolderUnion
 from star_resonance_relay.proto.stru_place_holder_val_pb2 import PlaceHolderVal
-from star_resonance_relay.proto.serv_social_pb2 import Social
-from star_resonance_relay.sniffer import BPSRSniffer
+from star_resonance_relay.sniffer.sniffer import BPSRSniffer
 
 logger = logging.getLogger(__name__)
 
@@ -215,6 +217,7 @@ PICTURE_EMOJI_MAPPING: dict[int, str] = {
 
 ITEM_MAPPING = pl.read_json("./ref/StarResonanceData/ztable/ItemTable.json").transpose().unnest()
 
+
 def get_item_name(item_config_id: int) -> str | None:
     try:
         return ITEM_MAPPING.filter(pl.col.Id == item_config_id).select("Name").item()
@@ -290,35 +293,37 @@ class BPSRRelayBot:
                 self.channel_types.append(channel_type)
 
         self.webhook = SyncWebhook.from_url(self.webhook_url, session=requests.Session())
-        self.sniffer = BPSRSniffer(self.on_bpsr_message)
+
+        self.sniffer = BPSRSniffer()
+        self.sniffer.set_service_type(Service.ChitChatNtf.value, MethodId.ChitChatNtf.NotifyNewestChitChatMsgs.value,
+                                      ChitChatNtf.NotifyNewestChitChatMsgs)
+        self.sniffer.set_service_type(Service.Social.value, MethodId.Social.GetSocialData.value, Social.GetSocialData)
+        self.sniffer.set_return_type(Social.GetSocialData, Social.GetSocialData_Ret)
+        self.sniffer.subscribe(Social.GetSocialData_Ret, self.on_get_social_data)
+        self.sniffer.subscribe(ChitChatNtf.NotifyNewestChitChatMsgs, self.on_chit_chat_msg)
+
         logger.info(f"Connected to webhook {self.webhook}")
 
     def start(self) -> None:
         self.sniffer.sniff()
         logger.info("Started sniffing")
 
-    def on_bpsr_message(self, payload: Message) -> None:
-        logger.info(payload)
-        match payload:
-            case ChitChatNtf.NotifyNewestChitChatMsgs():
-                if payload.v_request.channel_type not in self.channel_types:
-                    return
+    def on_get_social_data(self, event: Social.GetSocialData_Ret) -> None:
+        logger.info(event)
+        data = event.ret.data
+        self.player_avatar_url[data.char_id] = data.avatar_info.profile.url
 
-                # self.send_message(payload.v_request)
-            case Social.GetSocialData_Ret:
-                data = payload.ret.data
-                self.player_avatar_url[data.char_id] = data.avatar_info.profile.url
-
-    def send_message(self, event: NotifyNewestChitChatMsgsRequest) -> None:
+    def on_chit_chat_msg(self, event: ChitChatNtf.NotifyNewestChitChatMsgs) -> None:
+        req = event.v_request
         content: WebhookContent | None = None
-        match event.chat_msg.msg_info.msg_type:
+        match req.chat_msg.msg_info.msg_type:
             case ChitChatMsgType.ChatMsgTextMessage:
-                content = self._process_text_message(event)
+                content = self._process_text_message(req)
             case ChitChatMsgType.ChatMsgPictureEmoji:
-                content = self._process_picture_emoji(event)
+                content = self._process_picture_emoji(req)
             case ChitChatMsgType.ChatMsgHypertext:
                 try:
-                    content = self._process_hypertext(event)
+                    content = self._process_hypertext(req)
                 except NotImplementedError:
                     pass
 
@@ -465,11 +470,13 @@ class BPSRRelayBot:
                 value: PlaceHolderVal = self._decode_placeholder(placeholder)
 
                 username = "Guild"
-                content = Embed(description=f"With everyone's active participation, the hunting progress has reach {value.value}%, you can open the event interface to receive additional rewards provided by the Pioneer Bureau")
+                content = Embed(
+                    description=f"With everyone's active participation, the hunting progress has reach {value.value}%, you can open the event interface to receive additional rewards provided by the Pioneer Bureau")
 
             case HypertextVariant.EE_CHAN:
                 username = "Guild"
-                content = Embed(description="Ee-chan has brought rewards to the Guild, come and find Ee-chan to claim your rewards~")
+                content = Embed(
+                    description="Ee-chan has brought rewards to the Guild, come and find Ee-chan to claim your rewards~")
 
             case _:
                 raise NotImplementedError

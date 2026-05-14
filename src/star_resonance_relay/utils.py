@@ -27,6 +27,9 @@ class BinaryReader:
             raise EOFError
         return struct.unpack_from(">I", self._buffer, self._pos)[0]
 
+    def read_u8(self) -> int:
+        return struct.unpack(">B", self.read(1))[0]
+
     def read_u16(self) -> int:
         return struct.unpack(">H", self.read(2))[0]
 

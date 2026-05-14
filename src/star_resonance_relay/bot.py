@@ -217,7 +217,7 @@ ITEM_MAPPING = pl.read_json("./ref/StarResonanceData/ztable/ItemTable.json").tra
 
 def get_item_name(item_config_id: int) -> str | None:
     try:
-        return ITEM_MAPPING.filter(pl.col.Id == 345).select("Name").item()
+        return ITEM_MAPPING.filter(pl.col.Id == item_config_id).select("Name").item()
     except ValueError:
         return None
 

@@ -5,8 +5,8 @@ from enum import Enum
 
 import requests
 from discord import SyncWebhook, Embed, SyncWebhookMessage
+from discord.utils import MISSING
 from google.protobuf.message import Message
-from scapy.sendrecv import sniff
 
 from star_resonance_relay.const.item import ITEM_NAME_MAPPING
 from star_resonance_relay.proto.enum_chit_chat_channel_type_pb2 import ChitChatChannelType
@@ -27,7 +27,8 @@ from star_resonance_relay.proto.stru_place_holder_str_pb2 import PlaceHolderStr
 from star_resonance_relay.proto.stru_place_holder_timestamp_pb2 import PlaceHolderTimestamp
 from star_resonance_relay.proto.stru_place_holder_union_pb2 import PlaceHolderUnion
 from star_resonance_relay.proto.stru_place_holder_val_pb2 import PlaceHolderVal
-from star_resonance_relay.sniffer import BPSRChatSniffer
+from star_resonance_relay.proto.serv_social_pb2 import Social
+from star_resonance_relay.sniffer import BPSRSniffer
 
 logger = logging.getLogger(__name__)
 
@@ -217,11 +218,12 @@ PICTURE_EMOJI_MAPPING: dict[int, str] = {
 class WebhookContent:
     username: str
     content: str | Embed
+    avatar_url: str | None
 
     def send_to(self, webhook: SyncWebhook) -> SyncWebhookMessage | None:
         if isinstance(self.content, Embed):
-            return webhook.send(embed=self.content, username=self.username)
-        return webhook.send(self.content, username=self.username)
+            return webhook.send(embed=self.content, username=self.username, avatar_url=self.avatar_url or MISSING)
+        return webhook.send(self.content, username=self.username, avatar_url=self.avatar_url or MISSING)
 
 
 class HypertextVariant(Enum):
@@ -263,18 +265,61 @@ class BPSRRelayBot:
 
     def __init__(self):
         self.webhook_url = os.getenv("WEBHOOK_URL")
+        if not self.webhook_url:
+            raise RuntimeError("WEBHOOK_URL env is not defined")
+
         self.channel_types: list[ChitChatChannelType] = []
+        self.player_avatar_url: dict[int, str] = {}
 
         inverse_lookup = {v: k for k, v in self.CHANNEL_MAPPING.items()}
-        for key in os.getenv("CHANNEL_TYPE").split(","):
+        channel_type_string = os.getenv("CHANNEL_TYPE")
+        if not channel_type_string:
+            raise RuntimeError("CHANNEL_TYPE env is not defined")
+
+        for key in channel_type_string.split(","):
             channel_type = inverse_lookup.get(key)
             if channel_type:
                 self.channel_types.append(channel_type)
 
-        self.listener = BPSRChatSniffer(self.on_bpsr_message)
-        self.session = requests.Session()
-        self.webhook = SyncWebhook.from_url(self.webhook_url, session=self.session)
+        self.webhook = SyncWebhook.from_url(self.webhook_url, session=requests.Session())
+        self.sniffer = BPSRSniffer(self.on_bpsr_message)
         logger.info(f"Connected to webhook {self.webhook}")
+
+    def start(self) -> None:
+        self.sniffer.sniff()
+        logger.info("Started sniffing")
+
+    def on_bpsr_message(self, payload: Message) -> None:
+        logger.info(payload)
+        match payload:
+            case ChitChatNtf.NotifyNewestChitChatMsgs():
+                if payload.v_request.channel_type not in self.channel_types:
+                    return
+
+                # self.send_message(payload.v_request)
+            case Social.GetSocialData_Ret:
+                data = payload.ret.data
+                self.player_avatar_url[data.char_id] = data.avatar_info.profile.url
+
+    def send_message(self, event: NotifyNewestChitChatMsgsRequest) -> None:
+        content: WebhookContent | None = None
+        match event.chat_msg.msg_info.msg_type:
+            case ChitChatMsgType.ChatMsgTextMessage:
+                content = self._process_text_message(event)
+            case ChitChatMsgType.ChatMsgPictureEmoji:
+                content = self._process_picture_emoji(event)
+            case ChitChatMsgType.ChatMsgHypertext:
+                try:
+                    content = self._process_hypertext(event)
+                except NotImplementedError:
+                    pass
+
+        if content:
+            logger.info(f"{content=}")
+
+            content.send_to(self.webhook)
+        else:
+            logger.info(event)
 
     def _decode_placeholder(self, placeholder: PlaceHolder) -> (
             PlaceHolderVal
@@ -300,16 +345,6 @@ class BPSRRelayBot:
             logger.warning("Failed to decode %s: %s", placeholder, exc)
             raise
 
-    def on_bpsr_message(self, payload: Message) -> None:
-        if not isinstance(payload, ChitChatNtf.NotifyNewestChitChatMsgs):
-            return
-
-        payload: ChitChatNtf.NotifyNewestChitChatMsgs
-        if payload.v_request.channel_type not in self.channel_types:
-            return
-
-        self.send_message(payload.v_request)
-
     def _get_player_header(self, event: NotifyNewestChitChatMsgsRequest) -> str:
         char_info = event.chat_msg.send_char_info
 
@@ -325,12 +360,21 @@ class BPSRRelayBot:
         for key, value in EMOJI_MAPPING.items():
             content = content.replace(key, value)
 
-        return WebhookContent(username=self._get_player_header(event), content=content)
-
-    def _process_picture_emoji(self, event: NotifyNewestChitChatMsgsRequest) -> WebhookContent:
         return WebhookContent(
             username=self._get_player_header(event),
-            content=PICTURE_EMOJI_MAPPING.get(event.chat_msg.msg_info.picture_emoji.config_id)
+            content=content,
+            avatar_url=self.player_avatar_url.get(event.chat_msg.send_char_info.char_id)
+        )
+
+    def _process_picture_emoji(self, event: NotifyNewestChitChatMsgsRequest) -> WebhookContent:
+        emoji = PICTURE_EMOJI_MAPPING.get(event.chat_msg.msg_info.picture_emoji.config_id)
+        if emoji is None:
+            raise NotImplementedError
+
+        return WebhookContent(
+            username=self._get_player_header(event),
+            content=emoji,
+            avatar_url=self.player_avatar_url.get(event.chat_msg.send_char_info.char_id)
         )
 
     def _process_hypertext(self, event: NotifyNewestChitChatMsgsRequest) -> WebhookContent:
@@ -342,6 +386,7 @@ class BPSRRelayBot:
 
         match hypertext_type:
             case HypertextVariant.ITEM_SHARING:
+                username = self._get_player_header(event)
                 content = ""
 
                 for placeholder in hypertext.hypertext_contents:
@@ -352,9 +397,8 @@ class BPSRRelayBot:
                         case PlaceHolderItem() as item:
                             content += f"[ __{ITEM_NAME_MAPPING.get(item.config_id, item.config_id)}__ ]"
 
-                return WebhookContent(username=self._get_player_header(event), content=content)
-
             case HypertextVariant.MASTER_SEAL:
+                username = self._get_player_header(event)
                 content = ""
 
                 for placeholder in hypertext.hypertext_contents:
@@ -365,9 +409,8 @@ class BPSRRelayBot:
                         case PlaceHolderMasterMode() as master:
                             content += f"[ __{master.user_name}'s Master Seal__ ]"
 
-                return WebhookContent(username=self._get_player_header(event), content=content)
-
             case HypertextVariant.PERSONAL_SPACE:
+                username = self._get_player_header(event)
                 content = ""
 
                 for placeholder in hypertext.hypertext_contents:
@@ -378,9 +421,8 @@ class BPSRRelayBot:
                         case PlaceHolderPlayer() as player:
                             content += f"[ __{player.name}'s personal space__ ]"
 
-                return WebhookContent(username=self._get_player_header(event), content=content)
-
             case HypertextVariant.FISH:
+                username = self._get_player_header(event)
                 content = ""
 
                 for placeholder in hypertext.hypertext_contents:
@@ -391,9 +433,8 @@ class BPSRRelayBot:
                         case PlaceHolderFishItem() as fish:
                             content += f"[ __{event.chat_msg.send_char_info.name}'s record of {ITEM_NAME_MAPPING.get(fish.fish_id, fish.fish_id)}__ ]"
 
-                return WebhookContent(username=self._get_player_header(event), content=content)
-
             case HypertextVariant.FISHING_RECORD:
+                username = self._get_player_header(event)
                 content = ""
 
                 for placeholder in hypertext.hypertext_contents:
@@ -404,61 +445,32 @@ class BPSRRelayBot:
                         case PlaceHolderFishPersonalTotal() as record:
                             content += f"[ __{record.user_name}'s fishing profile__ ]"
 
-                return WebhookContent(username=self._get_player_header(event), content=content)
-
             case HypertextVariant.GUILD_WELCOME_NEW_MEMBER:
                 placeholder = hypertext.hypertext_contents[0]
                 player: PlaceHolderPlayer = self._decode_placeholder(placeholder)
 
-                return WebhookContent(
-                    username="Guild Administrator",
-                    content=Embed(description=f"Welcome __{player.name}__ to the Guild!")
-                )
+                username = "Guild Administrator"
+                content = Embed(description=f"Welcome __{player.name}__ to the Guild!")
 
             case HypertextVariant.GUILD_HUNT_PROGRESS:
                 placeholder = hypertext.hypertext_contents[0]
                 value: PlaceHolderVal = self._decode_placeholder(placeholder)
 
-                return WebhookContent(
-                    username="Guild",
-                    content=Embed(
-                        description="With everyone's active participation, the hunting progress has reach %d%%, you can open the "
-                                    "event interface to receive additional rewards provided by the Pioneer Bureau" % value.value)
-                )
+                username = "Guild"
+                content = Embed(description=f"With everyone's active participation, the hunting progress has reach {value.value}%, you can open the event interface to receive additional rewards provided by the Pioneer Bureau")
 
             case HypertextVariant.EE_CHAN:
-                return WebhookContent(
-                    username="Guild",
-                    content=Embed(
-                        description="Ee-chan has brought rewards to the Guild, come and find Ee-chan to claim your rewards~")
-                )
+                username = "Guild"
+                content = Embed(description="Ee-chan has brought rewards to the Guild, come and find Ee-chan to claim your rewards~")
 
             case _:
                 raise NotImplementedError
 
-    def send_message(self, event: NotifyNewestChitChatMsgsRequest) -> None:
-        content: WebhookContent | None = None
-        match event.chat_msg.msg_info.msg_type:
-            case ChitChatMsgType.ChatMsgTextMessage:
-                content = self._process_text_message(event)
-            case ChitChatMsgType.ChatMsgPictureEmoji:
-                content = self._process_picture_emoji(event)
-            case ChitChatMsgType.ChatMsgHypertext:
-                try:
-                    content = self._process_hypertext(event)
-                except NotImplementedError:
-                    pass
-
-        if content:
-            logger.info(f"{content=}")
-
-            content.send_to(self.webhook)
-        else:
-            logger.info(event)
-
-    def start(self) -> None:
-        logger.info("Started sniffing")
-        sniff(prn=self.listener.handle_packet, store=False)
+        return WebhookContent(
+            username=username,
+            content=content,
+            avatar_url=self.player_avatar_url.get(event.chat_msg.send_char_info.char_id)
+        )
 
 
 def main():

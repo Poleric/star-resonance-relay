@@ -4,11 +4,11 @@ from dataclasses import dataclass
 from enum import Enum
 
 import requests
+import polars as pl
 from discord import SyncWebhook, Embed, SyncWebhookMessage
 from discord.utils import MISSING
 from google.protobuf.message import Message
 
-from star_resonance_relay.const.item import ITEM_NAME_MAPPING
 from star_resonance_relay.proto.enum_chit_chat_channel_type_pb2 import ChitChatChannelType
 from star_resonance_relay.proto.enum_chit_chat_msg_type_pb2 import ChitChatMsgType
 from star_resonance_relay.proto.enum_place_holder_type_pb2 import PlaceHolderType
@@ -213,6 +213,14 @@ PICTURE_EMOJI_MAPPING: dict[int, str] = {
     11013: "<:Crying:1380650225492037754>",
 }
 
+ITEM_MAPPING = pl.read_json("./ref/StarResonanceData/ztable/ItemTable.json").transpose().unnest()
+
+def get_item_name(item_config_id: int) -> str | None:
+    try:
+        return ITEM_MAPPING.filter(pl.col.Id == 345).select("Name").item()
+    except ValueError:
+        return None
+
 
 @dataclass(slots=True)
 class WebhookContent:
@@ -395,7 +403,7 @@ class BPSRRelayBot:
                         case PlaceHolderStr() as string:
                             content += string.text
                         case PlaceHolderItem() as item:
-                            content += f"[ __{ITEM_NAME_MAPPING.get(item.config_id, item.config_id)}__ ]"
+                            content += f"[ __{get_item_name(item.config_id) or item.config_id}__ ]"
 
             case HypertextVariant.MASTER_SEAL:
                 username = self._get_player_header(event)
@@ -431,7 +439,7 @@ class BPSRRelayBot:
                         case PlaceHolderStr() as string:
                             content += string.text
                         case PlaceHolderFishItem() as fish:
-                            content += f"[ __{event.chat_msg.send_char_info.name}'s record of {ITEM_NAME_MAPPING.get(fish.fish_id, fish.fish_id)}__ ]"
+                            content += f"[ __{event.chat_msg.send_char_info.name}'s record of {get_item_name(fish.fish_id) or fish.fish_id}__ ]"
 
             case HypertextVariant.FISHING_RECORD:
                 username = self._get_player_header(event)

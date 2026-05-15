@@ -24,7 +24,6 @@ class BPSRSniffer:
     def __init__[T: Message, K: Message](self):
         self._processor = BPSRPacketProcessor()
         self._reassemblers: dict[Connection, TCPReassembler] = defaultdict(TCPReassembler)
-        self._known_servers: set[Connection] = set()
         self._handlers: dict[type[T], list[Callable[[T], None]]] = defaultdict(list)
 
         self._service_types: dict[tuple[int, int], type[T]] = {}
@@ -48,14 +47,14 @@ class BPSRSniffer:
             return
 
         connection = Connection.from_packet(packet)
-        if connection not in self._known_servers:
+        if connection not in self._reassemblers:
             payload = bytes(packet[Raw])
             # Discover/lock server flow
             if self._is_server(payload):
                 logger.info(f"Adding to flow "
                             f"{connection.source.ip}:{connection.source.port} <-> "
                             f"{connection.destination.ip}:{connection.destination.port}")
-                self._known_servers.add(connection)
+                _ = self._reassemblers[connection]
 
             return
 

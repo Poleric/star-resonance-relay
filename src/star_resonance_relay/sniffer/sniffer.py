@@ -27,7 +27,7 @@ class BPSRSniffer:
         self._handlers: dict[type[T], list[Callable[[T], None]]] = defaultdict(list)
 
         self._service_types: dict[tuple[int, int], type[T]] = {}
-        self._return_types: dict[type[T], type[K]] = {}
+        self._return_types: dict[type[K], type[T]] = {}
         self._calls: dict[int, type[T]] = {}
 
     def set_service_type[T: Message](self, service_id: int, method_id: int, msg_type: type[T]) -> None:
@@ -47,8 +47,8 @@ class BPSRSniffer:
             return
 
         connection = Connection.from_packet(packet)
+        payload = bytes(packet[Raw])
         if connection not in self._reassemblers:
-            payload = bytes(packet[Raw])
             # Discover/lock server flow
             if self._is_server(payload):
                 logger.info(f"Adding to flow "
@@ -59,7 +59,6 @@ class BPSRSniffer:
             return
 
         try:
-            payload = bytes(packet[Raw])
             complete_frame = self._reassemblers[connection].push(packet[TCP].seq, payload)
             if not complete_frame:
                 return

@@ -60,40 +60,41 @@ class BPSRSniffer:
 
         try:
             payload = bytes(packet[Raw])
+            complete_frame = self._reassemblers[connection].push(packet[TCP].seq, payload)
+            if not complete_frame:
+                return
 
-            self._reassemblers[connection].push(packet[TCP].seq, payload)
-            for frame in self._reassemblers[connection].pop_frames():
-                for msg in self._processor.process_bytes(frame):
-                    match msg:
-                        case CallMsg() | NotifyMsg():
-                            msg_type = self._service_types.get((msg.service_uuid, msg.method_id))
-                            if msg_type is None:
-                                continue
-
-                            if isinstance(msg, CallMsg):
-                                self._calls[msg.call_id] = msg_type
-
-                            handlers = self._handlers.get(msg_type, [])
-                            for handler in handlers:
-                                handler(msg_type.FromString(msg.data))
-
-                        case ReturnMsg():
-                            msg_type = self._calls.get(msg.call_id)
-                            if msg_type is None:
-                                continue
-
-                            del self._calls[msg.call_id]
-
-                            return_type = self._return_types.get(msg_type)
-                            if return_type is None:
-                                continue
-
-                            handlers = self._handlers.get(return_type, [])
-                            for handler in handlers:
-                                handler(return_type.FromString(msg.data))
-
-                        case _:
+            for msg in self._processor.process_bytes(complete_frame):
+                match msg:
+                    case CallMsg() | NotifyMsg():
+                        msg_type = self._service_types.get((msg.service_uuid, msg.method_id))
+                        if msg_type is None:
                             continue
+
+                        if isinstance(msg, CallMsg):
+                            self._calls[msg.call_id] = msg_type
+
+                        handlers = self._handlers.get(msg_type, [])
+                        for handler in handlers:
+                            handler(msg_type.FromString(msg.data))
+
+                    case ReturnMsg():
+                        msg_type = self._calls.get(msg.call_id)
+                        if msg_type is None:
+                            continue
+
+                        del self._calls[msg.call_id]
+
+                        return_type = self._return_types.get(msg_type)
+                        if return_type is None:
+                            continue
+
+                        handlers = self._handlers.get(return_type, [])
+                        for handler in handlers:
+                            handler(return_type.FromString(msg.data))
+
+                    case _:
+                        continue
 
         except Exception:
             logger.exception(packet)

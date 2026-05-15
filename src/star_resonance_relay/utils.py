@@ -1,5 +1,7 @@
 import struct
-from typing import Iterable
+from io import BytesIO
+
+from cachetools import TTLCache
 
 
 class BinaryReader:
@@ -44,50 +46,62 @@ class BinaryReader:
         return self.read(self.remaining())
 
 
-class TCPReassembler:
-    """Simple TCP stream reassembler.
+class TCPStream:
+    buf: BytesIO
+    length: int
 
-    Maintains an ordered map of sequence numbers to payloads and yields
-    contiguous data when possible.  Only one stream is tracked at a time,
-    matching the behavior of the Rust code where the game server is
-    identified and then the sniffer begins reassembling that connection.
+    def __init__(self, length: int, data: bytes | None = None):
+        self.length = length
+        self.buf = BytesIO()
+        if data:
+            self.buf.write(data)
+
+    @property
+    def current_length(self) -> int:
+        return self.buf.tell()
+
+    @property
+    def is_complete(self) -> bool:
+        return self.current_length >= self.length
+
+    def write(self, data: bytes) -> int:
+        return self.buf.write(data)
+
+    def read(self) -> bytes:
+        return self.buf.getvalue()
+
+
+class TCPReassembler:
+    """
+    TCP Reassembler with misordered and packet loss handling. Scapy drops packets at high loads.
     """
 
     def __init__(self) -> None:
-        self.cache: dict[int, bytes] = {}  # seq_num -> payload
-        self.next_seq: int | None = None
-        self._data = bytearray()
+        self.streams: TTLCache[int, TCPStream] = TTLCache(maxsize=32, ttl=60)  # seq_num -> payload
+        self.next_seq: TTLCache[int, int] = TTLCache(maxsize=32, ttl=60)
 
-    def clear(self, seq: int) -> None:
-        self.cache.clear()
-        self.next_seq = seq
-        self._data.clear()
-
-    def push(self, seq: int, payload: bytes) -> None:
+    def push(self, seq: int, payload: bytes) -> bytes | None:
         if not payload:
-            return
-        self.cache.setdefault(seq, payload)
-        # establish the next expected sequence if unknown
-        if self.next_seq is None:
-            self.next_seq = seq
-        # buffer contiguous segments
-        while self.next_seq in self.cache:
-            seg = self.cache.pop(self.next_seq)
-            self._data.extend(seg)
-            self.next_seq = (self.next_seq + len(seg)) & 0xFFFFFFFF
+            return None
 
-    def pop_frames(self) -> Iterable[bytes]:
-        """Extract complete length‑prefixed frames from the buffered data.
+        payload_length = len(payload)
+        if seq not in self.next_seq:
+            start_seq = seq
+            length = struct.unpack(">I", payload[:4])[0]
+            if payload_length >= length:
+                # complete payload
+                return payload
 
-        The BPSR protocol prefixes each frame with a 32‑bit big‑endian
-        length.  If not enough data is available for a complete frame
-        nothing is returned.
-        """
-        while len(self._data) >= 4:
-            frame_len = struct.unpack(">I", self._data[:4])[0]
-            if len(self._data) < frame_len:
-                break
-            # slice out the complete frame and remove it from buffer
-            frame = bytes(self._data[:frame_len])
-            del self._data[:frame_len]
-            yield frame
+            # else fragmented
+            self.streams[seq] = TCPStream(length, payload)
+        else:
+            start_seq = self.next_seq[seq]
+            stream = self.streams[start_seq]
+            stream.write(payload)
+            if stream.is_complete:
+                del self.streams[start_seq]
+                return stream.read()
+
+        self.next_seq[seq + payload_length] = start_seq
+        return None
+

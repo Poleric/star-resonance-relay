@@ -309,9 +309,9 @@ class BPSRRelayBot:
         logger.info("Started sniffing")
 
     def on_get_social_data(self, event: Social.GetSocialData_Ret) -> None:
-        logger.info(event)
         data = event.ret.data
         self.player_avatar_url[data.char_id] = data.avatar_info.profile.url
+        logger.info(f"Saved {data.char_id} profile image")
 
     def on_chit_chat_msg(self, event: ChitChatNtf.NotifyNewestChitChatMsgs) -> None:
         req = event.v_request

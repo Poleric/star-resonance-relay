@@ -96,6 +96,8 @@ class TCPReassembler:
             self.streams[seq] = TCPStream(length, payload)
         else:
             start_seq = self.next_seq[seq]
+            del self.next_seq[seq]
+
             stream = self.streams[start_seq]
             stream.write(payload)
             if stream.is_complete:

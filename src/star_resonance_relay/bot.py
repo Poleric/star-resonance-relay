@@ -101,6 +101,9 @@ class BPSRRelayBot:
 
     def on_chit_chat_msg(self, event: ChitChatNtf.NotifyNewestChitChatMsgs) -> None:
         req = event.v_request
+        if req.channel_type not in self.channel_types:
+            return
+
         content: WebhookContent | None = None
         match req.chat_msg.msg_info.msg_type:
             case ChitChatMsgType.ChatMsgTextMessage:

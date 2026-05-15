@@ -63,7 +63,6 @@ class BPSRSniffer:
             payload = bytes(packet[Raw])
 
             self._reassemblers[connection].push(packet[TCP].seq, payload)
-            logger.info(self._reassemblers[connection].cache)
             for frame in self._reassemblers[connection].pop_frames():
                 for msg in self._processor.process_bytes(frame):
                     match msg:

@@ -1,7 +1,6 @@
 import logging
 import os
 from dataclasses import dataclass
-from enum import Enum
 
 import polars as pl
 import requests
@@ -40,6 +39,13 @@ def get_item_name(item_config_id: int) -> str | None:
         return None
 
 
+def get_env_or_raise(key: str) -> str:
+    env = os.getenv(key)
+    if not env:
+        raise RuntimeError(f"{key} env is not defined")
+    return env
+
+
 @dataclass(slots=True)
 class WebhookContent:
     username: str
@@ -53,7 +59,7 @@ class WebhookContent:
 
 
 class BPSRRelayBot:
-    CHANNEL_MAPPING: dict[ChitChatChannelType, str] = {
+    CHANNEL_TYPE_TO_NAME: dict[ChitChatChannelType, str] = {
         ChitChatChannelType.ChannelWorld: "World",
         ChitChatChannelType.ChannelScene: "Current",
         ChitChatChannelType.ChannelTeam: "Team",
@@ -63,24 +69,14 @@ class BPSRRelayBot:
         ChitChatChannelType.ChannelTopNotice: "Notice",
         ChitChatChannelType.ChannelSystem: "System"
     }
+    CHANNEL_NAME_TO_TYPE: dict[str, ChitChatChannelType] = {v: k for k, v in CHANNEL_TYPE_TO_NAME.items()}
 
     def __init__(self):
-        self.webhook_url = os.getenv("WEBHOOK_URL")
-        if not self.webhook_url:
-            raise RuntimeError("WEBHOOK_URL env is not defined")
-
-        self.channel_types: list[ChitChatChannelType] = []
+        self.webhook_url = get_env_or_raise("WEBHOOK_URL")
+        self.channel_types: list[ChitChatChannelType] = [self.CHANNEL_NAME_TO_TYPE[key]
+                                                         for key in get_env_or_raise("CHANNEL_TYPE").split(",")
+                                                         if key in self.CHANNEL_NAME_TO_TYPE]
         self.player_avatar_url: dict[int, str] = {}
-
-        inverse_lookup = {v: k for k, v in self.CHANNEL_MAPPING.items()}
-        channel_type_string = os.getenv("CHANNEL_TYPE")
-        if not channel_type_string:
-            raise RuntimeError("CHANNEL_TYPE env is not defined")
-
-        for key in channel_type_string.split(","):
-            channel_type = inverse_lookup.get(key)
-            if channel_type:
-                self.channel_types.append(channel_type)
 
         self.webhook = SyncWebhook.from_url(self.webhook_url, session=requests.Session())
 
@@ -130,7 +126,7 @@ class BPSRRelayBot:
         return "{name}{sprout}[{channel}]".format(
             name=char_info.name,
             sprout=" 🌱 " if char_info.is_newbie else " ",
-            channel=self.CHANNEL_MAPPING[event.channel_type]
+            channel=self.CHANNEL_TYPE_TO_NAME[event.channel_type]
         )
 
     def _process_text_message(self, event: NotifyNewestChitChatMsgsRequest) -> WebhookContent:

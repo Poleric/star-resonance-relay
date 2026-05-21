@@ -3,6 +3,8 @@ Star Resonance Chat Relay
 
 A one-way chat relay between in-game chat → Discord chat for Blue Protocol: Star Resonance.
 
+Example application using https://github.com/Poleric/star-resonance-tracer-py.
+
 ![Demo](./.github/.meta/demo.png)
 
 ## Requirements
@@ -18,12 +20,8 @@ A one-way chat relay between in-game chat → Discord chat for Blue Protocol: St
    ```bash
    git submodule update --init --recursive
    ```
-2. Generate BPSR protocol buffers.
-   ```bash
-   uv run --group build scripts/generate_protobufs.py
-   ```
-3. Copy `.env.example` and rename it to `.env`.
-4. In `.env`,
+2. Copy `.env.example` and rename it to `.env`.
+3. In `.env`,
    - Replace `WEBHOOK_URL` value with the webhook on Discord side.
    - Replace `CHANNEL_TYPE` value with the channel types separated by `,` to relay the message.
      Supported: `World`, `Guild`, `Team`, `Current`
@@ -45,12 +43,6 @@ uv run --env-file .env star-resonance-relay
    ![Chat settings](./.github/.meta/chat-settings.png)
 2. Keep the General chat tab open.
    ![Chat setup](./.github/.meta/chat-setup.png)
-
-## Extending
-
-The main logic is separated into packet handling and packet sniffing logics.
-
-Example usage can be seen in `bot.py` for handling the callback from `BPSRSniffer`
 
 ## Limitations
 

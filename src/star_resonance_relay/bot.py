@@ -2,7 +2,6 @@ import logging
 import os
 from dataclasses import dataclass
 
-import polars as pl
 import requests
 from discord import SyncWebhook, Embed, SyncWebhookMessage
 from discord.utils import MISSING
@@ -26,20 +25,12 @@ from star_resonance_tracer.proto.stru_place_holder_player_pb2 import PlaceHolder
 from star_resonance_tracer.proto.stru_place_holder_str_pb2 import PlaceHolderStr
 from star_resonance_relay.const.placeholder import HypertextVariant, decode_placeholder
 from star_resonance_relay.const.emoji import PICTURE_EMOJI_MAPPING, EMOJI_MAPPING
+from star_resonance_relay.const.item import get_item_name
 from star_resonance_tracer.proto.stru_place_holder_val_pb2 import PlaceHolderVal
 from star_resonance_tracer.sniffer import Sniffer, Connection
 
 logger = logging.getLogger(__name__)
 
-
-ITEM_MAPPING = pl.read_json("./ref/StarResonanceData/ztable/ItemTable.json").transpose().unnest()
-
-
-def get_item_name(item_config_id: int) -> str | None:
-    try:
-        return ITEM_MAPPING.filter(pl.col.Id == item_config_id).select("Name").item()
-    except ValueError:
-        return None
 
 
 def get_env_or_raise(key: str) -> str:

@@ -1,3 +1,7 @@
+__all__ = (
+    "EMOJI_MAPPING",
+    "PICTURE_EMOJI_MAPPING"
+)
 
 # in_game_id: discord_emoji
 EMOJI_MAPPING: dict[str, str] = {

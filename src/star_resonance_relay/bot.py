@@ -6,25 +6,28 @@ import polars as pl
 import requests
 from discord import SyncWebhook, Embed, SyncWebhookMessage
 from discord.utils import MISSING
-from google.protobuf.message import Message
 
-from star_resonance_relay.packet import method as MethodId
-from star_resonance_relay.packet.service import Service
-from star_resonance_relay.proto.enum_chit_chat_channel_type_pb2 import ChitChatChannelType
-from star_resonance_relay.proto.enum_chit_chat_msg_type_pb2 import ChitChatMsgType
-from star_resonance_relay.proto.serv_chit_chat_ntf_pb2 import ChitChatNtf
-from star_resonance_relay.proto.serv_social_pb2 import Social
-from star_resonance_relay.proto.stru_notify_newest_chit_chat_msgs_request_pb2 import NotifyNewestChitChatMsgsRequest
-from star_resonance_relay.proto.stru_place_holder_fish_item_pb2 import PlaceHolderFishItem
-from star_resonance_relay.proto.stru_place_holder_fish_personal_total_pb2 import PlaceHolderFishPersonalTotal
-from star_resonance_relay.proto.stru_place_holder_item_pb2 import PlaceHolderItem
-from star_resonance_relay.proto.stru_place_holder_master_mode_pb2 import PlaceHolderMasterMode
-from star_resonance_relay.proto.stru_place_holder_player_pb2 import PlaceHolderPlayer
-from star_resonance_relay.proto.stru_place_holder_str_pb2 import PlaceHolderStr
-from star_resonance_relay.placeholder import HypertextVariant, decode_placeholder
-from star_resonance_relay.const import PICTURE_EMOJI_MAPPING, EMOJI_MAPPING
-from star_resonance_relay.proto.stru_place_holder_val_pb2 import PlaceHolderVal
-from star_resonance_relay.sniffer.sniffer import BPSRSniffer
+from scapy.config import conf
+from scapy.layers.inet import TCP, IP
+from scapy.packet import Packet, Raw
+from scapy.sendrecv import sniff
+
+from star_resonance_relay.const.service import ChitChatNtf, Social
+from star_resonance_tracer.proto.enum_chit_chat_channel_type_pb2 import ChitChatChannelType
+from star_resonance_tracer.proto.enum_chit_chat_msg_type_pb2 import ChitChatMsgType
+from star_resonance_tracer.proto.serv_chit_chat_ntf_pb2 import ChitChatNtf as ChitChatNtfPb
+from star_resonance_tracer.proto.serv_social_pb2 import Social as SocialPb
+from star_resonance_tracer.proto.stru_notify_newest_chit_chat_msgs_request_pb2 import NotifyNewestChitChatMsgsRequest
+from star_resonance_tracer.proto.stru_place_holder_fish_item_pb2 import PlaceHolderFishItem
+from star_resonance_tracer.proto.stru_place_holder_fish_personal_total_pb2 import PlaceHolderFishPersonalTotal
+from star_resonance_tracer.proto.stru_place_holder_item_pb2 import PlaceHolderItem
+from star_resonance_tracer.proto.stru_place_holder_master_mode_pb2 import PlaceHolderMasterMode
+from star_resonance_tracer.proto.stru_place_holder_player_pb2 import PlaceHolderPlayer
+from star_resonance_tracer.proto.stru_place_holder_str_pb2 import PlaceHolderStr
+from star_resonance_relay.const.placeholder import HypertextVariant, decode_placeholder
+from star_resonance_relay.const.emoji import PICTURE_EMOJI_MAPPING, EMOJI_MAPPING
+from star_resonance_tracer.proto.stru_place_holder_val_pb2 import PlaceHolderVal
+from star_resonance_tracer.sniffer import Sniffer, Connection
 
 logger = logging.getLogger(__name__)
 
@@ -79,33 +82,44 @@ class BPSRRelayBot:
         self.player_avatar_url: dict[int, str] = {}
 
         self.webhook = SyncWebhook.from_url(self.webhook_url, session=requests.Session())
-
-        self.sniffer = BPSRSniffer()
-        self.sniffer.set_service_type(Service.ChitChatNtf.value, MethodId.ChitChatNtf.NotifyNewestChitChatMsgs.value,
-                                      ChitChatNtf.NotifyNewestChitChatMsgs)
-        self.sniffer.set_service_type(Service.Social.value, MethodId.Social.GetSocialData.value, Social.GetSocialData)
-        self.sniffer.set_return_type(Social.GetSocialData, Social.GetSocialData_Ret)
-        self.sniffer.subscribe(Social.GetSocialData_Ret, self.on_get_social_data)
-        self.sniffer.subscribe(ChitChatNtf.NotifyNewestChitChatMsgs, self.on_chit_chat_msg)
-
         logger.info(f"Connected to webhook {self.webhook}")
 
     def start(self) -> None:
-        self.sniffer.sniff()
+        sniffer = Sniffer()
+        sniffer.set_service_type(ChitChatNtf.ServiceId.value, ChitChatNtf.Method.NotifyNewestChitChatMsgs.value, ChitChatNtfPb.NotifyNewestChitChatMsgs)
+        sniffer.set_service_type(Social.ServiceId.value, Social.Method.GetSocialData.value, SocialPb.GetSocialData)
+        sniffer.set_return_type(SocialPb.GetSocialData, SocialPb.GetSocialData_Ret)
+        sniffer.on_service(SocialPb.GetSocialData_Ret, self.on_get_social_data)
+        sniffer.on_service(ChitChatNtfPb.NotifyNewestChitChatMsgs, self.on_chit_chat_msg)
+
+        def on_packet(packet: Packet) -> None:
+            if TCP not in packet or Raw not in packet:
+                return
+
+            tcp = packet[TCP]
+            ip = packet[IP]
+
+            connection = Connection.from_tuple(ip.src, tcp.sport, ip.dst, tcp.dport)
+
+            payload = bytes(packet[Raw])
+
+            sniffer.process_packet(connection, payload, tcp_sequence=tcp.seq)
+
         logger.info("Started sniffing")
+        sniff(filter="tcp and ip", prn=on_packet, store=False)
 
-    def on_get_social_data(self, event: Social.GetSocialData_Ret) -> None:
+    def on_get_social_data(self, event: SocialPb.GetSocialData_Ret) -> None:
         data = event.ret.data
-        self.player_avatar_url[data.char_id] = data.avatar_info.profile.url
-        logger.info(f"Saved {data.char_id} profile image")
+        self.player_avatar_url[data.charId] = data.avatarInfo.profile.url
+        logger.info(f"Saved {data.charId} profile image")
 
-    def on_chit_chat_msg(self, event: ChitChatNtf.NotifyNewestChitChatMsgs) -> None:
-        req = event.v_request
-        if req.channel_type not in self.channel_types:
+    def on_chit_chat_msg(self, event: ChitChatNtfPb.NotifyNewestChitChatMsgs) -> None:
+        req = event.vRequest
+        if req.channelType not in self.channel_types:
             return
 
         content: WebhookContent | None = None
-        match req.chat_msg.msg_info.msg_type:
+        match req.chatMsg.msgInfo.msgType:
             case ChitChatMsgType.ChatMsgTextMessage:
                 content = self._process_text_message(req)
             case ChitChatMsgType.ChatMsgPictureEmoji:
@@ -124,16 +138,16 @@ class BPSRRelayBot:
             logger.info(event)
 
     def _get_player_header(self, event: NotifyNewestChitChatMsgsRequest) -> str:
-        char_info = event.chat_msg.send_char_info
+        char_info = event.chatMsg.sendCharInfo
 
         return "{name}{sprout}[{channel}]".format(
             name=char_info.name,
-            sprout=" 🌱 " if char_info.is_newbie else " ",
-            channel=self.CHANNEL_TYPE_TO_NAME[event.channel_type]
+            sprout=" 🌱 " if char_info.isNewbie else " ",
+            channel=self.CHANNEL_TYPE_TO_NAME[event.channelType]
         )
 
     def _process_text_message(self, event: NotifyNewestChitChatMsgsRequest) -> WebhookContent:
-        content = event.chat_msg.msg_info.msg_text
+        content = event.chatMsg.msgInfo.msgText
 
         for key, value in EMOJI_MAPPING.items():
             content = content.replace(key, value)
@@ -141,24 +155,24 @@ class BPSRRelayBot:
         return WebhookContent(
             username=self._get_player_header(event),
             content=content,
-            avatar_url=self.player_avatar_url.get(event.chat_msg.send_char_info.char_id)
+            avatar_url=self.player_avatar_url.get(event.chatMsg.sendCharInfo.charID)
         )
 
     def _process_picture_emoji(self, event: NotifyNewestChitChatMsgsRequest) -> WebhookContent:
-        emoji = PICTURE_EMOJI_MAPPING.get(event.chat_msg.msg_info.picture_emoji.config_id)
+        emoji = PICTURE_EMOJI_MAPPING.get(event.chatMsg.msgInfo.pictureEmoji.configId)
         if emoji is None:
             raise NotImplementedError
 
         return WebhookContent(
             username=self._get_player_header(event),
             content=emoji,
-            avatar_url=self.player_avatar_url.get(event.chat_msg.send_char_info.char_id)
+            avatar_url=self.player_avatar_url.get(event.chatMsg.sendCharInfo.charID)
         )
 
     def _process_hypertext(self, event: NotifyNewestChitChatMsgsRequest) -> WebhookContent:
-        hypertext = event.chat_msg.msg_info.chat_hypertext
+        hypertext = event.chatMsg.msgInfo.chatHypertext
         try:
-            hypertext_type = HypertextVariant(hypertext.config_id)
+            hypertext_type = HypertextVariant(hypertext.configId)
         except ValueError:
             raise NotImplementedError
 
@@ -167,31 +181,31 @@ class BPSRRelayBot:
                 username = self._get_player_header(event)
                 content = ""
 
-                for placeholder in hypertext.hypertext_contents:
+                for placeholder in hypertext.hypertextContents:
                     placeholder_content = decode_placeholder(placeholder)
                     match placeholder_content:
                         case PlaceHolderStr() as string:
                             content += string.text
                         case PlaceHolderItem() as item:
-                            content += f"[ __{get_item_name(item.config_id) or item.config_id}__ ]"
+                            content += f"[ __{get_item_name(item.configId) or item.configId}__ ]"
 
             case HypertextVariant.MASTER_SEAL:
                 username = self._get_player_header(event)
                 content = ""
 
-                for placeholder in hypertext.hypertext_contents:
+                for placeholder in hypertext.hypertextContents:
                     placeholder_content = decode_placeholder(placeholder)
                     match placeholder_content:
                         case PlaceHolderStr() as string:
                             content += string.text
                         case PlaceHolderMasterMode() as master:
-                            content += f"[ __{master.user_name}'s Master Seal__ ]"
+                            content += f"[ __{master.userName}'s Master Seal__ ]"
 
             case HypertextVariant.PERSONAL_SPACE:
                 username = self._get_player_header(event)
                 content = ""
 
-                for placeholder in hypertext.hypertext_contents:
+                for placeholder in hypertext.hypertextContents:
                     placeholder_content = decode_placeholder(placeholder)
                     match placeholder_content:
                         case PlaceHolderStr() as string:
@@ -203,35 +217,35 @@ class BPSRRelayBot:
                 username = self._get_player_header(event)
                 content = ""
 
-                for placeholder in hypertext.hypertext_contents:
+                for placeholder in hypertext.hypertextContents:
                     placeholder_content = decode_placeholder(placeholder)
                     match placeholder_content:
                         case PlaceHolderStr() as string:
                             content += string.text
                         case PlaceHolderFishItem() as fish:
-                            content += f"[ __{event.chat_msg.send_char_info.name}'s record of {get_item_name(fish.fish_id) or fish.fish_id}__ ]"
+                            content += f"[ __{event.chatMsg.sendCharInfo.name}'s record of {get_item_name(fish.FishId) or fish.FishId}__ ]"
 
             case HypertextVariant.FISHING_RECORD:
                 username = self._get_player_header(event)
                 content = ""
 
-                for placeholder in hypertext.hypertext_contents:
+                for placeholder in hypertext.hypertextContents:
                     placeholder_content = decode_placeholder(placeholder)
                     match placeholder_content:
                         case PlaceHolderStr() as string:
                             content += string.text
                         case PlaceHolderFishPersonalTotal() as record:
-                            content += f"[ __{record.user_name}'s fishing profile__ ]"
+                            content += f"[ __{record.userName}'s fishing profile__ ]"
 
             case HypertextVariant.GUILD_WELCOME_NEW_MEMBER:
-                placeholder = hypertext.hypertext_contents[0]
+                placeholder = hypertext.hypertextContents[0]
                 player: PlaceHolderPlayer = decode_placeholder(placeholder)
 
                 username = "Guild Administrator"
                 content = Embed(description=f"Welcome __{player.name}__ to the Guild!")
 
             case HypertextVariant.GUILD_HUNT_PROGRESS:
-                placeholder = hypertext.hypertext_contents[0]
+                placeholder = hypertext.hypertextContents[0]
                 value: PlaceHolderVal = decode_placeholder(placeholder)
 
                 username = "Guild"
@@ -249,7 +263,7 @@ class BPSRRelayBot:
         return WebhookContent(
             username=username,
             content=content,
-            avatar_url=self.player_avatar_url.get(event.chat_msg.send_char_info.char_id)
+            avatar_url=self.player_avatar_url.get(event.chatMsg.sendCharInfo.charID)
         )
 
 

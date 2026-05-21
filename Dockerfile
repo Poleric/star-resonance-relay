@@ -13,6 +13,4 @@ ENV UV_NO_DEV=1
 WORKDIR /app
 RUN uv sync --locked
 
-RUN uv run --group build scripts/generate_protobufs.py
-
 CMD ["uv", "run", "star-resonance-relay"]

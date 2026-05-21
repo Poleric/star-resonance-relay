@@ -1,21 +1,26 @@
 from enum import Enum
 
-from google._upb._message import Message
+from google.protobuf.message import Message
 
-from star_resonance_relay.proto.enum_place_holder_type_pb2 import PlaceHolderType
-from star_resonance_relay.proto.stru_place_holder_buff_pb2 import PlaceHolderBuff
-from star_resonance_relay.proto.stru_place_holder_fish_item_pb2 import PlaceHolderFishItem
-from star_resonance_relay.proto.stru_place_holder_fish_personal_total_pb2 import PlaceHolderFishPersonalTotal
-from star_resonance_relay.proto.stru_place_holder_fish_rank_pb2 import PlaceHolderFishRank
-from star_resonance_relay.proto.stru_place_holder_item_pb2 import PlaceHolderItem
-from star_resonance_relay.proto.stru_place_holder_master_mode_pb2 import PlaceHolderMasterMode
-from star_resonance_relay.proto.stru_place_holder_pb2 import PlaceHolder
-from star_resonance_relay.proto.stru_place_holder_player_pb2 import PlaceHolderPlayer
-from star_resonance_relay.proto.stru_place_holder_scene_position_pb2 import PlaceHolderScenePosition
-from star_resonance_relay.proto.stru_place_holder_str_pb2 import PlaceHolderStr
-from star_resonance_relay.proto.stru_place_holder_timestamp_pb2 import PlaceHolderTimestamp
-from star_resonance_relay.proto.stru_place_holder_union_pb2 import PlaceHolderUnion
-from star_resonance_relay.proto.stru_place_holder_val_pb2 import PlaceHolderVal
+from star_resonance_tracer.proto.enum_place_holder_type_pb2 import PlaceHolderType
+from star_resonance_tracer.proto.stru_place_holder_buff_pb2 import PlaceHolderBuff
+from star_resonance_tracer.proto.stru_place_holder_fish_item_pb2 import PlaceHolderFishItem
+from star_resonance_tracer.proto.stru_place_holder_fish_personal_total_pb2 import PlaceHolderFishPersonalTotal
+from star_resonance_tracer.proto.stru_place_holder_fish_rank_pb2 import PlaceHolderFishRank
+from star_resonance_tracer.proto.stru_place_holder_item_pb2 import PlaceHolderItem
+from star_resonance_tracer.proto.stru_place_holder_master_mode_pb2 import PlaceHolderMasterMode
+from star_resonance_tracer.proto.stru_place_holder_pb2 import PlaceHolder
+from star_resonance_tracer.proto.stru_place_holder_player_pb2 import PlaceHolderPlayer
+from star_resonance_tracer.proto.stru_place_holder_scene_position_pb2 import PlaceHolderScenePosition
+from star_resonance_tracer.proto.stru_place_holder_str_pb2 import PlaceHolderStr
+from star_resonance_tracer.proto.stru_place_holder_timestamp_pb2 import PlaceHolderTimestamp
+from star_resonance_tracer.proto.stru_place_holder_union_pb2 import PlaceHolderUnion
+from star_resonance_tracer.proto.stru_place_holder_val_pb2 import PlaceHolderVal
+
+__all__ = (
+    "HypertextVariant",
+    "decode_placeholder",
+)
 
 PLACEHOLDER_MAPPING: dict[PlaceHolderType, type[Message]] = {
     PlaceHolderType.PlaceHolderTypeVal: PlaceHolderVal,

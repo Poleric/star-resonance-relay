@@ -1,30 +1,36 @@
 [project]
 name = "star-resonance-relay"
 version = "0.1.0"
-description = "Add your description here"
+authors = [
+    { name = "Poleric", email = "laffey@dizzynight.moe" }
+]
+description = "A library of tools to handle and process packets from BPSR."
+readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
     "discord-py>=2.6.4",
-    "protobuf>=6.33.6",
     "requests>=2.32.5",
     "scapy>=2.7.0",
-    "zstandard>=0.25.0",
     "polars>=1.40.1",
-    "cachetools>=7.1.1",
+    "star-resonance-tracer>=0.1.0"
 ]
+license = "GPL-3.0-or-later"
+license-files = ["LICEN[CS]E"]
+
+[project.urls]
+Homepage = "https://github.com/Poleric/star-resonance-relay"
 
 [project.scripts]
 star-resonance-relay = "star_resonance_relay.bot:main"
 
-[dependency-groups]
-dev = [
-    "grpcio-tools>=1.80.0",
-    "ipykernel>=7.2.0"
-]
-build = [
-    "grpcio-tools>=1.80.0",
+[tool.uv.extra-build-dependencies]
+star-resonance-tracer = [
+    "grpcio_tools>1.18.0"
 ]
 
 [build-system]
-requires = ["uv_build>=0.10.4,<0.11.0"]
+requires = ["uv_build>=0.11.15,<0.12"]
 build-backend = "uv_build"
+
+[tool.uv.sources]
+star-resonance-tracer = { git = "https://github.com/Poleric/star-resonance-tracer-py" }

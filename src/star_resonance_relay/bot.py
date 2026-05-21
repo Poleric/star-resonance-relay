@@ -123,7 +123,10 @@ class BPSRRelayBot:
             case ChitChatMsgType.ChatMsgTextMessage:
                 content = self._process_text_message(req)
             case ChitChatMsgType.ChatMsgPictureEmoji:
-                content = self._process_picture_emoji(req)
+                try:
+                    content = self._process_picture_emoji(req)
+                except NotImplementedError:
+                    pass
             case ChitChatMsgType.ChatMsgHypertext:
                 try:
                     content = self._process_hypertext(req)
@@ -160,7 +163,7 @@ class BPSRRelayBot:
 
     def _process_picture_emoji(self, event: NotifyNewestChitChatMsgsRequest) -> WebhookContent:
         emoji = PICTURE_EMOJI_MAPPING.get(event.chatMsg.msgInfo.pictureEmoji.configId)
-        if emoji is None:
+        if not emoji:
             raise NotImplementedError
 
         return WebhookContent(

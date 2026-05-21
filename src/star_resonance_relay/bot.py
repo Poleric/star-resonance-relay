@@ -31,6 +31,7 @@ from star_resonance_tracer.sniffer import Sniffer, Connection
 
 logger = logging.getLogger(__name__)
 
+conf.layers.filter([TCP, IP])
 
 
 def get_env_or_raise(key: str) -> str:

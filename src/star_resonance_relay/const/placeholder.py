@@ -1,7 +1,6 @@
 from enum import Enum
 
 from google.protobuf.message import Message
-
 from star_resonance_tracer.proto.enum_place_holder_type_pb2 import PlaceHolderType
 from star_resonance_tracer.proto.stru_place_holder_buff_pb2 import PlaceHolderBuff
 from star_resonance_tracer.proto.stru_place_holder_fish_item_pb2 import PlaceHolderFishItem

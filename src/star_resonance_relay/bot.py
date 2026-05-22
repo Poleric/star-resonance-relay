@@ -1,20 +1,16 @@
+import dbm
 import logging
 import os
 from dataclasses import dataclass
-
-import dbm
 from typing import Self
 
 import requests
 from discord import SyncWebhook, Embed, SyncWebhookMessage
 from discord.utils import MISSING
-
 from scapy.config import conf
 from scapy.layers.inet import TCP, IP
 from scapy.packet import Packet, Raw
 from scapy.sendrecv import sniff
-
-from star_resonance_relay.const.service import ChitChatNtf, Social
 from star_resonance_tracer.proto.enum_chit_chat_channel_type_pb2 import ChitChatChannelType
 from star_resonance_tracer.proto.enum_chit_chat_msg_type_pb2 import ChitChatMsgType
 from star_resonance_tracer.proto.serv_chit_chat_ntf_pb2 import ChitChatNtf as ChitChatNtfPb
@@ -26,11 +22,13 @@ from star_resonance_tracer.proto.stru_place_holder_item_pb2 import PlaceHolderIt
 from star_resonance_tracer.proto.stru_place_holder_master_mode_pb2 import PlaceHolderMasterMode
 from star_resonance_tracer.proto.stru_place_holder_player_pb2 import PlaceHolderPlayer
 from star_resonance_tracer.proto.stru_place_holder_str_pb2 import PlaceHolderStr
-from star_resonance_relay.const.placeholder import HypertextVariant, decode_placeholder
-from star_resonance_relay.const.emoji import PICTURE_EMOJI_MAPPING, EMOJI_MAPPING
-from star_resonance_relay.const.item import get_item_name
 from star_resonance_tracer.proto.stru_place_holder_val_pb2 import PlaceHolderVal
 from star_resonance_tracer.sniffer import Sniffer, Connection
+
+from star_resonance_relay.const.emoji import PICTURE_EMOJI_MAPPING, EMOJI_MAPPING
+from star_resonance_relay.const.item import get_item_name
+from star_resonance_relay.const.placeholder import HypertextVariant, decode_placeholder
+from star_resonance_relay.const.service import ChitChatNtf, Social
 
 logger = logging.getLogger(__name__)
 
@@ -87,7 +85,8 @@ class BPSRRelayBot:
 
     def start(self) -> None:
         sniffer = Sniffer()
-        sniffer.set_service_type(ChitChatNtf.ServiceId.value, ChitChatNtf.Method.NotifyNewestChitChatMsgs.value, ChitChatNtfPb.NotifyNewestChitChatMsgs)
+        sniffer.set_service_type(ChitChatNtf.ServiceId.value, ChitChatNtf.Method.NotifyNewestChitChatMsgs.value,
+                                 ChitChatNtfPb.NotifyNewestChitChatMsgs)
         sniffer.set_service_type(Social.ServiceId.value, Social.Method.GetSocialData.value, SocialPb.GetSocialData)
         sniffer.set_return_type(SocialPb.GetSocialData, SocialPb.GetSocialData_Ret)
         sniffer.on_service(SocialPb.GetSocialData_Ret, self.on_get_social_data)

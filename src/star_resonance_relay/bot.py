@@ -2,6 +2,9 @@ import logging
 import os
 from dataclasses import dataclass
 
+import dbm
+from typing import Self
+
 import requests
 from discord import SyncWebhook, Embed, SyncWebhookMessage
 from discord.utils import MISSING
@@ -71,10 +74,16 @@ class BPSRRelayBot:
         self.channel_types: list[ChitChatChannelType] = [self.CHANNEL_NAME_TO_TYPE[key]
                                                          for key in get_env_or_raise("CHANNEL_TYPE").split(",")
                                                          if key in self.CHANNEL_NAME_TO_TYPE]
-        self.player_avatar_url: dict[int, str] = {}
+        self.player_avatar_url = dbm.open(get_env_or_raise("CACHE_FILE"), "c")
 
         self.webhook = SyncWebhook.from_url(self.webhook_url, session=requests.Session())
         logger.info(f"Connected to webhook {self.webhook}")
+
+    def __enter__(self) -> Self:
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+        self.player_avatar_url.close()
 
     def start(self) -> None:
         sniffer = Sniffer()
@@ -102,7 +111,7 @@ class BPSRRelayBot:
 
     def on_get_social_data(self, event: SocialPb.GetSocialData_Ret) -> None:
         data = event.ret.data
-        self.player_avatar_url[data.charId] = data.avatarInfo.profile.url
+        self._save_player_avatar(data.charId, data.avatarInfo.profile.url)
         logger.info(f"Saved {data.charId} profile image")
 
     def on_chit_chat_msg(self, event: ChitChatNtfPb.NotifyNewestChitChatMsgs) -> None:
@@ -132,6 +141,15 @@ class BPSRRelayBot:
         else:
             logger.info(event)
 
+    def _save_player_avatar(self, player_id: int, avatar_url: str) -> None:
+        self.player_avatar_url[player_id.to_bytes(length=8)] = avatar_url.encode()
+
+    def _get_player_avatar(self, player_id: int) -> str | None:
+        result = self.player_avatar_url.get(player_id.to_bytes(length=8))
+        if not result:
+            return None
+        return result.decode()
+
     def _get_player_header(self, event: NotifyNewestChitChatMsgsRequest) -> str:
         char_info = event.chatMsg.sendCharInfo
 
@@ -150,7 +168,7 @@ class BPSRRelayBot:
         return WebhookContent(
             username=self._get_player_header(event),
             content=content,
-            avatar_url=self.player_avatar_url.get(event.chatMsg.sendCharInfo.charID)
+            avatar_url=self._get_player_avatar(event.chatMsg.sendCharInfo.charID)
         )
 
     def _process_picture_emoji(self, event: NotifyNewestChitChatMsgsRequest) -> WebhookContent:
@@ -161,7 +179,7 @@ class BPSRRelayBot:
         return WebhookContent(
             username=self._get_player_header(event),
             content=emoji,
-            avatar_url=self.player_avatar_url.get(event.chatMsg.sendCharInfo.charID)
+            avatar_url=self._get_player_avatar(event.chatMsg.sendCharInfo.charID)
         )
 
     def _process_hypertext(self, event: NotifyNewestChitChatMsgsRequest) -> WebhookContent:
@@ -258,7 +276,7 @@ class BPSRRelayBot:
         return WebhookContent(
             username=username,
             content=content,
-            avatar_url=self.player_avatar_url.get(event.chatMsg.sendCharInfo.charID)
+            avatar_url=self._get_player_avatar(event.chatMsg.sendCharInfo.charID)
         )
 
 
@@ -267,8 +285,8 @@ def main():
 
     setup_logging()
 
-    bot = BPSRRelayBot()
-    bot.start()
+    with BPSRRelayBot() as bot:
+        bot.start()
 
 
 if __name__ == '__main__':

@@ -1,6 +1,7 @@
 import dbm
 import logging
 import os
+from collections import defaultdict
 from dataclasses import dataclass
 from typing import Self
 
@@ -11,6 +12,10 @@ from scapy.config import conf
 from scapy.layers.inet import TCP, IP
 from scapy.packet import Packet, Raw
 from scapy.sendrecv import sniff
+from star_resonance_relay.const.emoji import PICTURE_EMOJI_MAPPING, EMOJI_MAPPING
+from star_resonance_relay.const.item import get_item_name
+from star_resonance_relay.const.placeholder import HypertextVariant, decode_placeholder
+from star_resonance_relay.const.service import ChitChatNtf, Social
 from star_resonance_tracer.connection import SignatureBasedConnectionDetector, Connection
 from star_resonance_tracer.proto.enum_chit_chat_channel_type_pb2 import ChitChatChannelType
 from star_resonance_tracer.proto.enum_chit_chat_msg_type_pb2 import ChitChatMsgType
@@ -25,11 +30,7 @@ from star_resonance_tracer.proto.stru_place_holder_player_pb2 import PlaceHolder
 from star_resonance_tracer.proto.stru_place_holder_str_pb2 import PlaceHolderStr
 from star_resonance_tracer.proto.stru_place_holder_val_pb2 import PlaceHolderVal
 from star_resonance_tracer.sniffer import Sniffer
-
-from star_resonance_relay.const.emoji import PICTURE_EMOJI_MAPPING, EMOJI_MAPPING
-from star_resonance_relay.const.item import get_item_name
-from star_resonance_relay.const.placeholder import HypertextVariant, decode_placeholder
-from star_resonance_relay.const.service import ChitChatNtf, Social
+from star_resonance_tracer.utils import TCPReassembler
 
 logger = logging.getLogger(__name__)
 
@@ -85,15 +86,16 @@ class BPSRRelayBot:
         self.player_avatar_url.close()
 
     def start(self) -> None:
-        detector = SignatureBasedConnectionDetector()
-
-        sniffer = Sniffer(detector)
+        sniffer = Sniffer()
         sniffer.set_service_type(ChitChatNtf.ServiceId.value, ChitChatNtf.Method.NotifyNewestChitChatMsgs.value,
                                  ChitChatNtfPb.NotifyNewestChitChatMsgs)
         sniffer.set_service_type(Social.ServiceId.value, Social.Method.GetSocialData.value, SocialPb.GetSocialData)
         sniffer.set_return_type(SocialPb.GetSocialData, SocialPb.GetSocialData_Ret)
         sniffer.on_service(SocialPb.GetSocialData_Ret, self.on_get_social_data)
         sniffer.on_service(ChitChatNtfPb.NotifyNewestChitChatMsgs, self.on_chit_chat_msg)
+
+        detector = SignatureBasedConnectionDetector()
+        reassemblers: dict[Connection, TCPReassembler] = defaultdict(TCPReassembler)
 
         def on_packet(packet: Packet) -> None:
             if TCP not in packet or Raw not in packet:
@@ -105,7 +107,16 @@ class BPSRRelayBot:
             connection = Connection.from_tuple(ip.src, tcp.sport, ip.dst, tcp.dport)
             payload = bytes(packet[Raw])
 
-            sniffer.process_packet(connection, payload, tcp_sequence=tcp.seq)
+            # Check if packet is from bpsr
+            if not detector.is_server(connection) and not detector.detect(connection, payload):
+                return
+
+            # Reassemble tcp fragment
+            payload = reassemblers[connection].push(tcp.seq, payload)
+            if not payload:
+                return
+
+            sniffer.process_packet(payload)
 
         logger.info("Started sniffing")
         sniff(filter="tcp and ip", prn=on_packet, store=False)

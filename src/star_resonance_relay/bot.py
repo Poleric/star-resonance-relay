@@ -11,6 +11,7 @@ from scapy.config import conf
 from scapy.layers.inet import TCP, IP
 from scapy.packet import Packet, Raw
 from scapy.sendrecv import sniff
+from star_resonance_tracer.connection import SignatureBasedConnectionDetector, Connection
 from star_resonance_tracer.proto.enum_chit_chat_channel_type_pb2 import ChitChatChannelType
 from star_resonance_tracer.proto.enum_chit_chat_msg_type_pb2 import ChitChatMsgType
 from star_resonance_tracer.proto.serv_chit_chat_ntf_pb2 import ChitChatNtf as ChitChatNtfPb
@@ -23,7 +24,7 @@ from star_resonance_tracer.proto.stru_place_holder_master_mode_pb2 import PlaceH
 from star_resonance_tracer.proto.stru_place_holder_player_pb2 import PlaceHolderPlayer
 from star_resonance_tracer.proto.stru_place_holder_str_pb2 import PlaceHolderStr
 from star_resonance_tracer.proto.stru_place_holder_val_pb2 import PlaceHolderVal
-from star_resonance_tracer.sniffer import Sniffer, Connection
+from star_resonance_tracer.sniffer import Sniffer
 
 from star_resonance_relay.const.emoji import PICTURE_EMOJI_MAPPING, EMOJI_MAPPING
 from star_resonance_relay.const.item import get_item_name
@@ -84,7 +85,9 @@ class BPSRRelayBot:
         self.player_avatar_url.close()
 
     def start(self) -> None:
-        sniffer = Sniffer()
+        detector = SignatureBasedConnectionDetector()
+
+        sniffer = Sniffer(detector)
         sniffer.set_service_type(ChitChatNtf.ServiceId.value, ChitChatNtf.Method.NotifyNewestChitChatMsgs.value,
                                  ChitChatNtfPb.NotifyNewestChitChatMsgs)
         sniffer.set_service_type(Social.ServiceId.value, Social.Method.GetSocialData.value, SocialPb.GetSocialData)
@@ -100,7 +103,6 @@ class BPSRRelayBot:
             ip = packet[IP]
 
             connection = Connection.from_tuple(ip.src, tcp.sport, ip.dst, tcp.dport)
-
             payload = bytes(packet[Raw])
 
             sniffer.process_packet(connection, payload, tcp_sequence=tcp.seq)

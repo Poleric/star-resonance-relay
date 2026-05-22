@@ -16,7 +16,7 @@ from star_resonance_relay.const.emoji import PICTURE_EMOJI_MAPPING, EMOJI_MAPPIN
 from star_resonance_relay.const.item import get_item_name
 from star_resonance_relay.const.placeholder import HypertextVariant, decode_placeholder
 from star_resonance_relay.const.service import ChitChatNtf, Social
-from star_resonance_tracer.connection import SignatureBasedConnectionDetector, Connection
+from star_resonance_tracer.connection import SignatureBasedConnectionDetector, Connection, PidBasedConnectionDetector
 from star_resonance_tracer.proto.enum_chit_chat_channel_type_pb2 import ChitChatChannelType
 from star_resonance_tracer.proto.enum_chit_chat_msg_type_pb2 import ChitChatMsgType
 from star_resonance_tracer.proto.serv_chit_chat_ntf_pb2 import ChitChatNtf as ChitChatNtfPb
@@ -94,32 +94,58 @@ class BPSRRelayBot:
         sniffer.on_service(SocialPb.GetSocialData_Ret, self.on_get_social_data)
         sniffer.on_service(ChitChatNtfPb.NotifyNewestChitChatMsgs, self.on_chit_chat_msg)
 
-        detector = SignatureBasedConnectionDetector()
         reassemblers: dict[Connection, TCPReassembler] = defaultdict(TCPReassembler)
+        executable_name = os.getenv("EXECUTABLE_NAME")
+        if executable_name:
+            detector = PidBasedConnectionDetector()
+            detector.add_from_executable_name(executable_name)
 
-        def on_packet(packet: Packet) -> None:
-            if TCP not in packet or Raw not in packet:
-                return
+            def on_packet(packet: Packet) -> None:
+                if TCP not in packet or Raw not in packet:
+                    return
 
-            tcp = packet[TCP]
-            ip = packet[IP]
+                tcp = packet[TCP]
+                ip = packet[IP]
 
-            connection = Connection.from_tuple(ip.src, tcp.sport, ip.dst, tcp.dport)
-            payload = bytes(packet[Raw])
+                connection = Connection.from_tuple(ip.src, tcp.sport, ip.dst, tcp.dport)
+                payload = bytes(packet[Raw])
 
-            # Check if packet is from bpsr
-            if not detector.is_server(connection) and not detector.detect(connection, payload):
-                return
+                # Reassemble tcp fragment
+                payload = reassemblers[connection].push(tcp.seq, payload)
+                if not payload:
+                    return
 
-            # Reassemble tcp fragment
-            payload = reassemblers[connection].push(tcp.seq, payload)
-            if not payload:
-                return
+                sniffer.process_packet(payload)
 
-            sniffer.process_packet(payload)
+            bpf_filter = detector.as_bpf_filter()
+        else:
+            detector = SignatureBasedConnectionDetector()
+
+            def on_packet(packet: Packet) -> None:
+                if TCP not in packet or Raw not in packet:
+                    return
+
+                tcp = packet[TCP]
+                ip = packet[IP]
+
+                connection = Connection.from_tuple(ip.src, tcp.sport, ip.dst, tcp.dport)
+                payload = bytes(packet[Raw])
+
+                # Check if packet is from bpsr
+                if not detector.is_server(connection) and not detector.detect(connection, payload):
+                    return
+
+                # Reassemble tcp fragment
+                payload = reassemblers[connection].push(tcp.seq, payload)
+                if not payload:
+                    return
+
+                sniffer.process_packet(payload)
+
+            bpf_filter = "tcp and ip"
 
         logger.info("Started sniffing")
-        sniff(filter="tcp and ip", prn=on_packet, store=False)
+        sniff(filter=bpf_filter, prn=on_packet, store=False)
 
     def on_get_social_data(self, event: SocialPb.GetSocialData_Ret) -> None:
         data = event.ret.data

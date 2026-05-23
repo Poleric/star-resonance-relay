@@ -445,8 +445,8 @@ requires-dist = [
 
 [[package]]
 name = "star-resonance-tracer"
-version = "0.1.2"
-source = { git = "https://github.com/Poleric/star-resonance-tracer-py#4616b6060c8efda911325dbd230b01d9ea427c1f" }
+version = "0.1.4"
+source = { git = "https://github.com/Poleric/star-resonance-tracer-py#84a71f95eff0e0420c7cdbd56b07e66549016d1e" }
 dependencies = [
     { name = "cachetools" },
     { name = "protobuf" },

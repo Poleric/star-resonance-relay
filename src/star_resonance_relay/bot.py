@@ -136,8 +136,11 @@ class BPSRRelayBot:
                     return
 
                 # Reassemble tcp fragment
-                payload = reassemblers[connection].push(tcp.seq, payload)
-                if not payload:
+                try:
+                    payload = reassemblers[connection].push(tcp.seq, payload)
+                    if not payload:
+                        return
+                except IndexError:
                     return
 
                 sniffer.process_packet(payload)

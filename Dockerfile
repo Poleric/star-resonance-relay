@@ -1,7 +1,8 @@
-FROM python:3.14-alpine
+FROM python:3.14-slim
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
-RUN apk add libpcap
+RUN apt-get update
+RUN apt-get install -y libpcap-dev git
 
 # Copy the project into the image
 COPY . /app

@@ -111,11 +111,17 @@ class BPSRRelayBot:
                 payload = bytes(packet[Raw])
 
                 # Reassemble tcp fragment
-                payload = reassemblers[connection].push(tcp.seq, payload)
-                if not payload:
-                    return
+                try:
+                    try:
+                        payload = reassemblers[connection].push(tcp.seq, payload)
+                        if not payload:
+                            return
+                    except KeyError:
+                        return
 
-                sniffer.process_packet(payload)
+                    sniffer.process_packet(payload)
+                except Exception:
+                    logger.exception("Silently catch error")
 
             bpf_filter = detector.as_bpf_filter()
         else:
@@ -137,13 +143,16 @@ class BPSRRelayBot:
 
                 # Reassemble tcp fragment
                 try:
-                    payload = reassemblers[connection].push(tcp.seq, payload)
-                    if not payload:
+                    try:
+                        payload = reassemblers[connection].push(tcp.seq, payload)
+                        if not payload:
+                            return
+                    except KeyError:
                         return
-                except IndexError:
-                    return
 
-                sniffer.process_packet(payload)
+                    sniffer.process_packet(payload)
+                except Exception:
+                    logger.exception("Silently catch error")
 
             bpf_filter = "tcp and ip"
 

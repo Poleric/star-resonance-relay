@@ -69,4 +69,4 @@ def decode_placeholder(placeholder: PlaceHolder) -> SupportedPlaceholders:
         raise NotImplementedError
 
     # All compiled protobuf messages support ``FromString``
-    return decoder.FromString(placeholder.bytes_content)  # type: ignore[attr-defined]
+    return decoder.FromString(placeholder.bytesContent)  # type: ignore[attr-defined]

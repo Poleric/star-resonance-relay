@@ -53,14 +53,15 @@ type SupportedPlaceholders = (
 
 
 class HypertextVariant(Enum):
-    ITEM_SHARING = 3000001
     MASTER_SEAL = 1050001
+    EE_CHAN = 1005003
+    ITEM_SHARING = 3000001
     PERSONAL_SPACE = 3001001
     FISH = 8009003
     FISHING_RECORD = 8009005
-    GUILD_WELCOME_NEW_MEMBER = 5001012
     GUILD_HUNT_PROGRESS = 5010003
-    EE_CHAN = 1005003
+    GUILD_TEMPORARY_ALBUM = 5001011
+    GUILD_WELCOME_NEW_MEMBER = 5001012
 
 
 def decode_placeholder(placeholder: PlaceHolder) -> SupportedPlaceholders:

@@ -315,6 +315,13 @@ class BPSRRelayBot:
                 content = Embed(
                     description=f"With everyone's active participation, the hunting progress has reach {value.value}%, you can open the event interface to receive additional rewards provided by the Pioneer Bureau")
 
+            case HypertextVariant.GUILD_TEMPORARY_ALBUM:
+                placeholder = hypertext.hypertextContents[0]
+                player: PlaceHolderPlayer = decode_placeholder(placeholder)
+
+                username = "Guild Administrator"
+                content = Embed(description=f"__{player.name}__ uploaded a photo to the Guild's temporary album.")
+
             case HypertextVariant.EE_CHAN:
                 username = "Guild"
                 content = Embed(

@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from typing import Self
 
 import requests
-from discord import SyncWebhook, Embed, SyncWebhookMessage
+from discord import SyncWebhook, Embed, SyncWebhookMessage, AllowedMentions
 from discord.utils import MISSING
 from scapy.config import conf
 from scapy.layers.inet import TCP, IP
@@ -52,8 +52,18 @@ class WebhookContent:
 
     def send_to(self, webhook: SyncWebhook) -> SyncWebhookMessage | None:
         if isinstance(self.content, Embed):
-            return webhook.send(embed=self.content, username=self.username, avatar_url=self.avatar_url or MISSING)
-        return webhook.send(self.content, username=self.username, avatar_url=self.avatar_url or MISSING)
+            return webhook.send(
+                embed=self.content,
+                username=self.username,
+                avatar_url=self.avatar_url or MISSING,
+                allowed_mentions=AllowedMentions.none()
+            )
+        return webhook.send(
+            self.content,
+            username=self.username,
+            avatar_url=self.avatar_url or MISSING,
+            allowed_mentions=AllowedMentions.none()
+        )
 
 
 class BPSRRelayBot:
